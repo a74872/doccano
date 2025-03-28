@@ -1,3 +1,5 @@
+import { dateFormat } from '@vuejs-community/vue-filter-date-format'
+import { dateParse } from '@vuejs-community/vue-filter-date-parse'
 import { Page } from '@/domain/models/page'
 import { UserItem } from '@/domain/models/user/user'
 import ApiService from '@/services/api.service'
@@ -13,8 +15,8 @@ function toModel(item: { [key: string]: any }): UserItem {
     item.is_active,
     item.first_name,
     item.last_name,
-    new Date(item.date_joined),  // converte a string para Date
-    item.last_login ? new Date(item.last_login) : "No login activity recorded yet"
+    dateFormat(dateParse(item.date_joined, 'YYYY-MM-DDTHH:mm:ss'), 'YYYY/MM/DD HH:mm'),
+    item.last_login ? dateFormat(dateParse(item.last_login, 'YYYY-MM-DDTHH:mm:ss'), 'YYYY/MM/DD HH:mm') : "No login activity recorded yet"
   )
 }
 
