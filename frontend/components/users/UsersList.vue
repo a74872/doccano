@@ -28,7 +28,7 @@
 
       <!-- Nome de Usuário com ícone -->
       <template #[`item.username`]="{ item }">
-        <v-btn icon small @click="showDetails(item)" title="Ver detalhes">
+        <v-btn title="Ver detalhes" icon small @click="showDetails(item)" >
           <v-icon>{{ mdiChevronDown }}</v-icon>
         </v-btn>
         {{ item.username }}
@@ -46,7 +46,7 @@
 
       <!-- Coluna Ações -->
       <template #[`item.actions`]="{ item }">
-        <v-icon small @click="showDetails(item)" color="primary" class="cursor-pointer" title="Ver detalhes">
+        <v-icon color="primary" class="cursor-pointer" title="Ver detalhes" small @click="showDetails(item)">
           mdi-eye
         </v-icon>
       </template>

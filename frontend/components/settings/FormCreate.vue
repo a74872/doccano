@@ -2,7 +2,7 @@
     <v-card>
       <v-card-title>{{ $t('generic.create') }}</v-card-title>
       <v-card-text>
-        <v-form v-model="valid" ref="form">
+        <v-form ref="form" v-model="valid" >
           <!-- Novos campos First name e Last name -->
           <v-text-field
             v-model="firstName"
