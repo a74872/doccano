@@ -32,8 +32,8 @@ class Users(generics.ListAPIView):
         filters.SearchFilter,
         filters.OrderingFilter,
     )
-    search_fields = ("username",)
-
+    search_fields = ['username']
+    search_param = 'search'
     ordering_fields = ['username','first_name','last_name', 'is_staff', 'is_superuser', 'is_active', 'email', 'date_joined', 'last_login']  # ADICIONADO
     ordering = ['username']  # ORDEM PADRÃO
 

@@ -7,6 +7,14 @@
       :server-items-length="total"
       :search="search"
       :loading="isLoading"
+      :loading-text="$t('generic.loading')"
+      :no-data-text="$t('vuetify.noDataAvailable')"
+      :footer-props="{
+        showFirstLastPage: true,
+        'items-per-page-options': [10, 50, 100],
+        'items-per-page-text': $t('vuetify.itemsPerPageText'),
+        'page-text': $t('dataset.pageText')
+      }"
       item-key="id"
       show-select
       class="elevation-1"
@@ -18,7 +26,7 @@
         <v-text-field
           v-model="search"
           :prepend-inner-icon="mdiMagnify"
-          label="Pesquisar"
+          :label="$t('generic.search')"
           single-line
           hide-details
           filled
@@ -89,18 +97,22 @@ export default Vue.extend({
   props: {
     isLoading: {
       type: Boolean,
+      default: false,
       required: true
     },
     items: {
       type: Array as PropType<UserItem[]>,
+      default: () => [],
       required: true
     },
     value: {
       type: Array as PropType<UserItem[]>,
+      default: () => [],
       required: true
     },
     total: {
       type: Number,
+      default: 0,
       required: true
     }
   },
@@ -116,27 +128,46 @@ export default Vue.extend({
 },
 
   computed: {
-    headers() {
-  return [
-    { text: 'Username', value: 'username', sortable: true },
-     { text: 'First Name', value: 'first_name' },
-     { text: 'Last Name', value: 'last_name' },
-    { text: 'Staff', value: 'isStaff' },
-    { text: 'Superuser', value: 'isSuperuser' },
-    { text: 'Active', value: 'isActive' },
-    { text: 'Email', value: 'email' },
-    { text: 'Joined in', value: 'date_joined' },
-    { text: 'Last Login', value: 'last_login' },
-
-  ]
-}
-
-  },
-  watch: {
-    search() {
-      this.emitSearch()
+    headers(): { text: any; value: string; sortable?: boolean }[] {
+      return [
+        { text: 'Username', value: 'username', sortable: true },
+        { text: 'First Name', value: 'first_name' },
+        { text: 'Last Name', value: 'last_name' },
+        { text: 'Staff', value: 'isStaff' },
+        { text: 'Superuser', value: 'isSuperuser' },
+        { text: 'Active', value: 'isActive' },
+        { text: 'Email', value: 'email' },
+        { text: 'Joined in', value: 'date_joined' },
+        { text: 'Last Login', value: 'last_login' },
+      ]
     }
   },
+
+  watch: {
+    options: {
+      handler() {
+        this.updateQuery({
+          query: {
+            limit: this.options.itemsPerPage.toString(),
+            offset: ((this.options.page - 1) * this.options.itemsPerPage).toString(),
+            q: this.search
+          }
+        })
+      },
+      deep: true
+    },
+    search() {
+      this.updateQuery({
+        query: {
+          limit: this.options.itemsPerPage.toString(),
+          offset: '0',
+          q: this.search
+        }
+      })
+      this.options.page = 1
+    }
+  },
+
   methods: {
   emitSearch() {
     this.$emit('search', this.search)
@@ -146,14 +177,15 @@ export default Vue.extend({
     const ordering = sortBy?.[0] ? (sortDesc?.[0] ? '-' + sortBy[0] : sortBy[0]) : ''
     const query = {
       ...payload.query,
-      search: this.search, // utiliza "search"
+      q: this.search, // utiliza "search"
       ordering
     }
+    console.log("Atualizando query:", query);
     this.$emit('update:query', { query })
   },
   onSearch(search: string) {
     // Cria uma query com a chave "search"
-    const query = { ...this.$route.query, search }
+    const query = { ...this.$route.query, q: search }
     this.updateQuery({ query })
   },
   showDetails(user: UserItem) {
