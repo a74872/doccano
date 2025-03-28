@@ -29,6 +29,16 @@
     >
       {{ $t('header.projects') }}
     </v-btn>
+
+    <v-btn
+      v-if="isAuthenticated"
+      text
+      class="text-capitalize"
+      @click="$router.push(localePath('/myprofile'))"
+    >
+      My Profile
+    </v-btn>
+
     <v-menu v-if="!isAuthenticated" open-on-hover offset-y>
       <template #activator="{ on }">
         <v-btn text v-on="on">
@@ -88,7 +98,7 @@
 </template>
 
 <script>
-import { mdiLogout, mdiDotsVertical, mdiMenuDown, mdiHexagonMultiple, mdiAccountCog} from '@mdi/js'
+import { mdiLogout, mdiDotsVertical, mdiMenuDown, mdiHexagonMultiple, mdiAccountCog } from '@mdi/js'
 import { mapGetters, mapActions } from 'vuex'
 import TheColorModeSwitcher from './TheColorModeSwitcher'
 import LocaleMenu from './LocaleMenu'

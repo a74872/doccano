@@ -23,6 +23,18 @@
             required
           />
           <v-text-field
+            v-model="first_name"
+            :label="$t('First Name')"
+            :rules="nameRules"
+            required
+            />
+          <v-text-field
+            v-model="last_name"
+            :label="$t('Last Name')"
+            :rules="nameRules"
+            required
+            />
+          <v-text-field
             v-model="email"
             :label="$t('Email')"
             :rules="emailRules"
@@ -84,6 +96,8 @@
         firstName: '',
         lastName: '',
         username: '',
+        first_name: '',
+        last_name: '',
         email: '',
         password1: '',
         password2: '',
@@ -105,6 +119,10 @@
           (v: string) => /.+@.+\..+/.test(v) || this.$t('User email must be valid'),
           (v: string) => v.length <= 254 || this.$t('User email is too long'),
         ],
+        nameRules: [
+          (v: string) => !!v || this.$t('name.nameRequired'),
+          (v: string) => /^[^\d]*$/.test(v) || this.$t('name.noNumbersAllowed')
+        ],
         passwordRules: [
           (v: string) => !!v || this.$t('user.passwordRequired'),
           (v: string) => v.length >= 8 || this.$t('user.passwordTooShort')
@@ -121,10 +139,10 @@
         this.errorMessage = ''
         try {
           await this.$repositories.user.create({
-            first_name: this.firstName,
-            last_name: this.lastName,
             username: this.username,
             email: this.email,
+            first_name: this.first_name,
+            last_name: this.last_name,
             password1: this.password1,
             password2: this.password2,
             is_superuser: this.isSuperuser,
@@ -132,9 +150,10 @@
           })
           this.$emit('save')
         } catch (e: any) {
-          console.error("Erro ao criar usuário:", e)
-          this.errorMessage = e.response?.data?.detail || this.$t('generic.error')
-        } finally {
+            console.error("Erro ao criar usuário:", e.response?.data || e.message)
+            this.errorMessage = e.response?.data?.detail || JSON.stringify(e.response?.data) || this.$t('generic.error')
+        }
+ finally {
           this.loading = false
         }
       }

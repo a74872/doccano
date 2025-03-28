@@ -6,12 +6,12 @@ function toModel(item: { [key: string]: any }): UserItem {
   return new UserItem(
     item.id,
     item.username,
+    item.first_name,
+    item.last_name,
     item.email,
     item.is_superuser,
     item.is_staff,
-    item.is_active,
-    item.first_name,
-    item.last_name
+    item.is_active
   )
 }
 
@@ -20,11 +20,11 @@ function toModel(item: { [key: string]: any }): UserItem {
 function toPayload(item: { [key: string]: any }): { [key: string]: any } {
   return {
     username: item.username,
+    first_name: item.first_name,
+    last_name: item.last_name,
     email: item.email,
     password1: item.password1,
     password2: item.password2,
-    first_name: item.first_name,
-    last_name: item.last_name,
     is_superuser: item.is_superuser,
     is_staff: item.is_staff
   }
@@ -69,7 +69,7 @@ export class APIUserRepository {
       throw error
     }
   }
-  
+
   async bulkDelete(userIds: number[]): Promise<void> {
     const url = '/users/delete'; // nova rota
     await this.request.post(url, { ids: userIds }, { headers: { "Content-Type": "application/json" } });
