@@ -21,7 +21,6 @@
 <script lang="ts">
 import _ from 'lodash'
 import Vue from 'vue'
-import FormCreate from '@/components/users/FormCreate.vue'
 import UsersList from '@/components/users/UsersList.vue'
 import { Page } from '~/domain/models/page'
 import { User } from '~/domain/models/user'

@@ -2,16 +2,19 @@ import { Page } from '@/domain/models/page'
 import { UserItem } from '@/domain/models/user/user'
 import ApiService from '@/services/api.service'
 
+
 function toModel(item: { [key: string]: any }): UserItem {
   return new UserItem(
     item.id,
     item.username,
-    item.first_name,
-    item.last_name,
     item.email,
     item.is_superuser,
     item.is_staff,
-    item.is_active
+    item.is_active,
+    item.first_name,
+    item.last_name,
+    new Date(item.date_joined),  // converte a string para Date
+    item.last_login ? new Date(item.last_login) : "No login activity recorded yet"
   )
 }
 
@@ -22,11 +25,11 @@ function toPayload(item: { [key: string]: any }): { [key: string]: any } {
     username: item.username,
     first_name: item.first_name,
     last_name: item.last_name,
+    is_superuser: item.is_superuser,
+    is_staff: item.is_staff,
     email: item.email,
     password1: item.password1,
-    password2: item.password2,
-    is_superuser: item.is_superuser,
-    is_staff: item.is_staff
+    password2: item.password2
   }
 }
 

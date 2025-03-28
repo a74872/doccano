@@ -6,7 +6,9 @@ export class UserItem {
     readonly isSuperuser: boolean,
     readonly isStaff: boolean,
     readonly isActive: boolean,
-    readonly firstName: string,
-    readonly lastName: string
+    readonly first_name: string,
+    readonly last_name: string,
+    readonly date_joined: Date,
+    readonly last_login: Date
   ) {}
 }

@@ -91,13 +91,12 @@ export default Vue.extend({
     },
 
     updateQuery({ query }: { query: any }) {
-  this.$router.push({ query })
+    this.$router.push({ query })
   },
-
-    onSearch(search: string) {
-      const query = { ...this.$route.query, q: search }
-      this.updateQuery(query)
-    },
+  onSearch(search: string) {
+    const query = { ...this.$route.query, search }
+    this.updateQuery({ query })
+  },
 
     onSave() {
       this.dialogCreate = false
@@ -118,10 +117,7 @@ export default Vue.extend({
       } catch (error) {
         console.error("Erro ao deletar usuários:", error);
       }
-}
-
-
-
+    }
   }
 })
 </script>

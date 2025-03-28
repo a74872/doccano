@@ -5,13 +5,13 @@
         <v-form ref="form" v-model="valid" >
           <!-- Novos campos First name e Last name -->
           <v-text-field
-            v-model="firstName"
+            v-model="first_name"
             :label="$t('First Name')"
             :rules="firstNameRules"
             required
           />
           <v-text-field
-            v-model="lastName"
+            v-model="last_name"
             :label="$t('Last Name')"
             :rules="lastNameRules"
             required
@@ -22,18 +22,6 @@
             :rules="usernameRules"
             required
           />
-          <v-text-field
-            v-model="first_name"
-            :label="$t('First Name')"
-            :rules="nameRules"
-            required
-            />
-          <v-text-field
-            v-model="last_name"
-            :label="$t('Last Name')"
-            :rules="nameRules"
-            required
-            />
           <v-text-field
             v-model="email"
             :label="$t('Email')"
@@ -93,16 +81,14 @@
       return {
         valid: false,
         loading: false,
-        firstName: '',
-        lastName: '',
         username: '',
         first_name: '',
         last_name: '',
         email: '',
-        password1: '',
-        password2: '',
         isSuperuser: false,
         isStaff: false,
+        password1: '',
+        password2: '',
         errorMessage: '',
         firstNameRules: [
           (v: string) => !!v || this.$t('First name')
@@ -139,14 +125,14 @@
         this.errorMessage = ''
         try {
           await this.$repositories.user.create({
-            username: this.username,
-            email: this.email,
             first_name: this.first_name,
             last_name: this.last_name,
+            username: this.username,
+            is_superuser: this.isSuperuser,
+            is_staff: this.isSuperuser ? true : this.isStaff,
+            email: this.email,
             password1: this.password1,
             password2: this.password2,
-            is_superuser: this.isSuperuser,
-            is_staff: this.isSuperuser ? true : this.isStaff
           })
           this.$emit('save')
         } catch (e: any) {

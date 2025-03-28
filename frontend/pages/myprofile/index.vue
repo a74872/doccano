@@ -19,20 +19,16 @@
                 </thead>
                 <tbody>
                   <tr>
-                    <td><strong>ID</strong></td>
-                    <td>{{ user.id }}</td>
-                  </tr>
-                  <tr>
                     <td><strong>Username</strong></td>
                     <td>{{ user.username }}</td>
                   </tr>
                   <tr>
                     <td><strong>First Name</strong></td>
-                    <td>{{ user.firstName }}</td>
+                    <td>{{ user.first_name }}</td>
                   </tr>
                   <tr>
                     <td><strong>Last Name</strong></td>
-                    <td>{{ user.lastName }}</td>
+                    <td>{{ user.last_name }}</td>
                   </tr>
                   <tr>
                     <td><strong>Email</strong></td>

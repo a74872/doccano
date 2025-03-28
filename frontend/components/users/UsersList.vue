@@ -62,8 +62,8 @@
         <v-card-text v-if="selectedUser">
              <p><strong>ID:</strong> {{ selectedUser.id }}</p>
             <p><strong>💗 Username:</strong> {{ selectedUser.username }}</p>
-            <p><strong>🧍 Primeiro Nome:</strong> {{ selectedUser.firstName }}</p>
-            <p><strong>🧍 Último Nome:</strong> {{ selectedUser.lastName }}</p>
+            <p><strong>🧍 Primeiro Nome:</strong> {{ selectedUser.first_name }}</p>
+            <p><strong>🧍 Último Nome:</strong> {{ selectedUser.last_name }}</p>
             <p><strong>📧 Email:</strong> {{ selectedUser.email || 'Não informado' }}</p>
             <p><strong>👥 Staff:</strong> {{ selectedUser.isStaff ? '✅ Sim' : '❌ Não' }}</p>
             <p><strong>🛡️ Superuser:</strong> {{ selectedUser.isSuperuser ? '✅ Sim' : '❌ Não' }}</p>
@@ -105,24 +105,29 @@ export default Vue.extend({
     }
   },
   data() {
-    return {
-      search: this.$route.query.q || '',
-      options: {} as DataOptions,
-      mdiMagnify,
-      mdiChevronDown,
-      showDialog: false,
-      selectedUser: null as UserItem | null
-    }
-  },
+  return {
+    search: this.$route.query.search || '',
+    options: {} as DataOptions,
+    mdiMagnify,
+    mdiChevronDown,
+    showDialog: false,
+    selectedUser: null as UserItem | null
+  }
+},
+
   computed: {
     headers() {
   return [
     { text: 'Username', value: 'username', sortable: true },
-      { text: 'First_name', value: 'firstName' },
-      { text: 'Last_name', value: 'lastName' },
+     { text: 'First Name', value: 'first_name' },
+     { text: 'Last Name', value: 'last_name' },
     { text: 'Staff', value: 'isStaff' },
     { text: 'Superuser', value: 'isSuperuser' },
     { text: 'Active', value: 'isActive' },
+    { text: 'Email', value: 'email' },
+    { text: 'Joined in', value: 'date_joined' },
+    { text: 'Last Login', value: 'last_login' },
+
   ]
 }
 
@@ -133,26 +138,29 @@ export default Vue.extend({
     }
   },
   methods: {
-    emitSearch() {
-      this.$emit('search', this.search)
-    },
-    updateQuery(payload: any) {
-  const { sortBy, sortDesc } = this.options
-
-  const query = {
-    ...payload.query,
-    sortBy: sortBy?.[0] || '',
-    sortDesc: sortDesc?.[0] || false,
-    q: this.search
-  }
-
-  this.$emit('update:query', { query })
-}
-,
-    showDetails(user: UserItem) {
-      this.selectedUser = user
-      this.showDialog = true
+  emitSearch() {
+    this.$emit('search', this.search)
+  },
+  updateQuery(payload: any) {
+    const { sortBy, sortDesc } = this.options
+    const ordering = sortBy?.[0] ? (sortDesc?.[0] ? '-' + sortBy[0] : sortBy[0]) : ''
+    const query = {
+      ...payload.query,
+      search: this.search, // utiliza "search"
+      ordering
     }
+    this.$emit('update:query', { query })
+  },
+  onSearch(search: string) {
+    // Cria uma query com a chave "search"
+    const query = { ...this.$route.query, search }
+    this.updateQuery({ query })
+  },
+  showDetails(user: UserItem) {
+    this.selectedUser = user
+    this.showDialog = true
   }
+}
+
 })
 </script>
