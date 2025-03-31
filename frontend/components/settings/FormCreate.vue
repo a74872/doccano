@@ -2,16 +2,16 @@
     <v-card>
       <v-card-title>{{ $t('generic.create') }}</v-card-title>
       <v-card-text>
-        <v-form v-model="valid" ref="form">
+        <v-form ref="form" v-model="valid" >
           <!-- Novos campos First name e Last name -->
           <v-text-field
-            v-model="firstName"
+            v-model="first_name"
             :label="$t('First Name')"
             :rules="firstNameRules"
             required
           />
           <v-text-field
-            v-model="lastName"
+            v-model="last_name"
             :label="$t('Last Name')"
             :rules="lastNameRules"
             required
@@ -81,14 +81,14 @@
       return {
         valid: false,
         loading: false,
-        firstName: '',
-        lastName: '',
         username: '',
+        first_name: '',
+        last_name: '',
         email: '',
-        password1: '',
-        password2: '',
         isSuperuser: false,
         isStaff: false,
+        password1: '',
+        password2: '',
         errorMessage: '',
         firstNameRules: [
           (v: string) => !!v || this.$t('First name')
@@ -104,6 +104,10 @@
           (v: string) => !!v || this.$t('User email is required'),
           (v: string) => /.+@.+\..+/.test(v) || this.$t('User email must be valid'),
           (v: string) => v.length <= 254 || this.$t('User email is too long'),
+        ],
+        nameRules: [
+          (v: string) => !!v || this.$t('name.nameRequired'),
+          (v: string) => /^[^\d]*$/.test(v) || this.$t('name.noNumbersAllowed')
         ],
         passwordRules: [
           (v: string) => !!v || this.$t('user.passwordRequired'),
@@ -121,18 +125,21 @@
         this.errorMessage = ''
         try {
           await this.$repositories.user.create({
+            first_name: this.first_name,
+            last_name: this.last_name,
             username: this.username,
+            is_superuser: this.isSuperuser,
+            is_staff: this.isSuperuser ? true : this.isStaff,
             email: this.email,
             password1: this.password1,
             password2: this.password2,
-            is_superuser: this.isSuperuser,
-            is_staff: this.isSuperuser ? true : this.isStaff
           })
           this.$emit('save')
         } catch (e: any) {
-          console.error("Erro ao criar usuário:", e)
-          this.errorMessage = e.response?.data?.detail || this.$t('generic.error')
-        } finally {
+            console.error("Erro ao criar usuário:", e.response?.data || e.message)
+            this.errorMessage = e.response?.data?.detail || JSON.stringify(e.response?.data) || this.$t('generic.error')
+        }
+ finally {
           this.loading = false
         }
       }

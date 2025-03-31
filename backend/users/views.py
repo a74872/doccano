@@ -32,9 +32,9 @@ class Users(generics.ListAPIView):
         filters.SearchFilter,
         filters.OrderingFilter,
     )
-    search_fields = ("username",)
-
-    ordering_fields = ['username','first_name','last_name', 'is_staff', 'is_superuser', 'is_active']  # ADICIONADO
+    search_fields = ['username']
+    search_param = 'search'
+    ordering_fields = ['username','first_name','last_name', 'is_staff', 'is_superuser', 'is_active', 'email', 'date_joined', 'last_login']  # ADICIONADO
     ordering = ['username']  # ORDEM PADRÃO
 
 
@@ -43,7 +43,7 @@ class Users(generics.ListAPIView):
 
 
 class UserCreation(generics.CreateAPIView):
-    serializer_class = RegisterSerializer 
+    serializer_class = RegisterSerializer
     permission_classes = [IsAuthenticated & IsAdminUser]
 
     def create(self, request, *args, **kwargs):

@@ -1,3 +1,5 @@
+import { dateFormat } from '@vuejs-community/vue-filter-date-format'
+import { dateParse } from '@vuejs-community/vue-filter-date-parse'
 import { Page } from '@/domain/models/page'
 import { UserItem } from '@/domain/models/user/user'
 import ApiService from '@/services/api.service'
@@ -12,7 +14,9 @@ function toModel(item: { [key: string]: any }): UserItem {
     item.is_staff,
     item.is_active,
     item.first_name,
-    item.last_name
+    item.last_name,
+    dateFormat(dateParse(item.date_joined, 'YYYY-MM-DDTHH:mm:ss'), 'YYYY/MM/DD HH:mm'),
+    item.last_login ? dateFormat(dateParse(item.last_login, 'YYYY-MM-DDTHH:mm:ss'), 'YYYY/MM/DD HH:mm') : "No login activity recorded yet"
   )
 }
 
@@ -21,11 +25,11 @@ function toPayload(item: { [key: string]: any }): { [key: string]: any } {
     username: item.username,
     first_name: item.first_name,
     last_name: item.last_name,
+    is_superuser: item.is_superuser,
+    is_staff: item.is_staff,
     email: item.email,
     password1: item.password1,
-    password2: item.password2,
-    is_superuser: item.is_superuser,
-    is_staff: item.is_staff
+    password2: item.password2
   }
 }
 
@@ -68,7 +72,7 @@ export class APIUserRepository {
       throw error
     }
   }
-  
+
   async bulkDelete(userIds: number[]): Promise<void> {
     const url = '/users/delete'; // nova rota
     await this.request.post(url, { ids: userIds }, { headers: { "Content-Type": "application/json" } });

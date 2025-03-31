@@ -21,7 +21,6 @@
 <script lang="ts">
 import _ from 'lodash'
 import Vue from 'vue'
-import FormCreate from '@/components/users/FormCreate.vue'
 import UsersList from '@/components/users/UsersList.vue'
 import { Page } from '~/domain/models/page'
 import { User } from '~/domain/models/user'
@@ -59,12 +58,12 @@ export default Vue.extend({
   methods: {
     async fetchUsers() {
       this.isLoading = true
-      this.users = await this.$services.user.list(this.$route.query)
+      this.users = await this.$repositories.user.list(this.$route.query)
       this.isLoading = false
     },
 
     updateQuery(query: object) {
-      this.$router.push({ query })
+      this.$router.push({ query: query as { [key: string]: string | (string | null)[] | null | undefined } })
     },
 
     handleUserCreated() {
