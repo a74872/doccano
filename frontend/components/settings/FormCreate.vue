@@ -121,8 +121,6 @@
         this.errorMessage = ''
         try {
           await this.$repositories.user.create({
-            first_name: this.firstName,
-            last_name: this.lastName,
             username: this.username,
             email: this.email,
             password1: this.password1,

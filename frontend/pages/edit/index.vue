@@ -13,7 +13,6 @@
       @input="$emit('input', $event)"
       @update:options="updateQuery({ query: $route.query })"
     >
-      <!-- Campo de Pesquisa -->
       <template #top>
         <v-text-field
           v-model="search"
@@ -26,7 +25,6 @@
         />
       </template>
 
-      <!-- Nome de Usuário com ícone -->
       <template #[`item.username`]="{ item }">
         <v-btn icon small @click="showDetails(item)" title="Ver detalhes">
           <v-icon>{{ mdiChevronDown }}</v-icon>
@@ -34,17 +32,14 @@
         {{ item.username }}
       </template>
 
-      <!-- Coluna Staff (true/false) -->
       <template #[`item.isStaff`]="{ item }">
         {{ item.isStaff }}
       </template>
 
-      <!-- Coluna Superuser (true/false) -->
       <template #[`item.isSuperuser`]="{ item }">
         {{ item.isSuperuser }}
       </template>
 
-      <!-- Coluna Ações -->
       <template #[`item.actions`]="{ item }">
         <v-icon small @click="showDetails(item)" color="primary" class="cursor-pointer" title="Ver detalhes">
           mdi-eye
@@ -52,25 +47,24 @@
       </template>
     </v-data-table>
 
-    <!-- Diálogo de Detalhes -->
     <v-dialog v-model="showDialog" max-width="500px">
       <v-card>
         <v-card-title class="text-h6">
           <v-icon left color="deep-purple accent-4">mdi-account-circle</v-icon>
-          User Details
+          Edit User
         </v-card-title>
         <v-card-text v-if="selectedUser">
-             <p><strong>ID:</strong> {{ selectedUser.id }}</p>
-            <p><strong>💗 Username:</strong> {{ selectedUser.username }}</p>
-            <p><strong>🧍 Primeiro Nome:</strong> {{ selectedUser.firstName }}</p>
-            <p><strong>🧍 Último Nome:</strong> {{ selectedUser.lastName }}</p>
-            <p><strong>📧 Email:</strong> {{ selectedUser.email || 'Não informado' }}</p>
-            <p><strong>👥 Staff:</strong> {{ selectedUser.isStaff ? '✅ Sim' : '❌ Não' }}</p>
-            <p><strong>🛡️ Superuser:</strong> {{ selectedUser.isSuperuser ? '✅ Sim' : '❌ Não' }}</p>
-                </v-card-text>
+          <v-text-field v-model="selectedUser.username" label="Username" />
+          <v-text-field v-model="selectedUser.firstName" label="Primeiro Nome" />
+          <v-text-field v-model="selectedUser.lastName" label="Último Nome" />
+          <v-text-field v-model="selectedUser.email" label="Email" />
+          <v-switch v-model="selectedUser.isStaff" label="Staff" />
+          <v-switch v-model="selectedUser.isSuperuser" label="Superuser" />
+        </v-card-text>
 
         <v-card-actions>
           <v-spacer></v-spacer>
+          <v-btn color="primary" text @click="saveUser">Salvar</v-btn>
           <v-btn color="primary" text @click="showDialog = false">Fechar</v-btn>
         </v-card-actions>
       </v-card>
@@ -116,16 +110,15 @@ export default Vue.extend({
   },
   computed: {
     headers() {
-  return [
-    { text: 'Username', value: 'username', sortable: true },
-      { text: 'First_Name', value: 'firstName' },
-      { text: 'Last_Name', value: 'lastName' },
-    { text: 'Staff', value: 'isStaff' },
-    { text: 'Superuser', value: 'isSuperuser' },
-    { text: 'Active', value: 'isActive' },
-  ]
-}
-
+      return [
+        { text: 'Username', value: 'username', sortable: true },
+        { text: 'First_name', value: 'firstName' },
+        { text: 'Last_name', value: 'lastName' },
+        { text: 'Staff', value: 'isStaff' },
+        { text: 'Superuser', value: 'isSuperuser' },
+        { text: 'Active', value: 'isActive' },
+      ]
+    }
   },
   watch: {
     search() {
@@ -137,21 +130,22 @@ export default Vue.extend({
       this.$emit('search', this.search)
     },
     updateQuery(payload: any) {
-  const { sortBy, sortDesc } = this.options
-
-  const query = {
-    ...payload.query,
-    sortBy: sortBy?.[0] || '',
-    sortDesc: sortDesc?.[0] || false,
-    q: this.search
-  }
-
-  this.$emit('update:query', { query })
-}
-,
+      const { sortBy, sortDesc } = this.options
+      const query = {
+        ...payload.query,
+        sortBy: sortBy?.[0] || '',
+        sortDesc: sortDesc?.[0] || false,
+        q: this.search
+      }
+      this.$emit('update:query', { query })
+    },
     showDetails(user: UserItem) {
-      this.selectedUser = user
+      this.selectedUser = { ...user }
       this.showDialog = true
+    },
+    saveUser() {
+      this.$emit('update-user', this.selectedUser)
+      this.showDialog = false
     }
   }
 })
