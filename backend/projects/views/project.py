@@ -10,6 +10,9 @@ from projects.models import Project
 from projects.permissions import IsProjectAdmin, IsProjectStaffAndReadOnly
 from projects.serializers import ProjectPolymorphicSerializer
 
+from projects.models import Perspective
+from projects.serializers import PerspectiveSerializer
+
 
 class ProjectList(generics.ListCreateAPIView):
     serializer_class = ProjectPolymorphicSerializer
@@ -65,3 +68,27 @@ class CloneProject(views.APIView):
         cloned_project = project.clone()
         serializer = ProjectPolymorphicSerializer(cloned_project)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class PerspectiveListCreateView(generics.ListCreateAPIView):
+    """Listar e criar perspetivas para um projeto."""
+    serializer_class = PerspectiveSerializer
+    permission_classes = [IsAuthenticated & IsProjectAdmin]
+
+    def get_queryset(self):
+        project_id = self.kwargs["project_id"]
+        return Perspective.objects.filter(project_id=project_id)
+
+    def perform_create(self, serializer):
+        project = get_object_or_404(Project, pk=self.kwargs["project_id"])
+        serializer.save(project=project)
+
+
+
+    def perform_destroy(self, instance):
+        if instance.project.examples.exists():
+            return Response(
+                {"detail": "Cannot delete perspectives already in use."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        super().perform_destroy(instance)

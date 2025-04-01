@@ -122,6 +122,12 @@ export default {
           text: this.$t('settings.title'),
           link: 'settings',
           isVisible: this.isProjectAdmin
+        },
+        {
+          icon: mdiCog,
+          text: 'Perspective',
+          link: 'perspectives',
+          isVisible: this.isProjectAdmin
         }
       ]
       return items.filter((item) => item.isVisible)

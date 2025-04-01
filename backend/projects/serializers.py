@@ -13,7 +13,7 @@ from .models import (
     SequenceLabelingProject,
     Speech2textProject,
     Tag,
-    TextClassificationProject,
+    TextClassificationProject, Perspective,
 )
 
 
@@ -146,3 +146,15 @@ class ProjectPolymorphicSerializer(PolymorphicSerializer):
         Project: ProjectSerializer,
         **{cls.Meta.model: cls for cls in ProjectSerializer.__subclasses__()},
     }
+
+class PerspectiveSerializer(serializers.ModelSerializer):
+    created_by = serializers.ReadOnlyField(source="created_by.username")
+
+    class Meta:
+        model = Perspective
+        fields = ["id", "name", "data_type", "project", "created_by", "created_at"]
+
+    def create(self, validated_data):
+        validated_data["created_by"] = self.context["request"].user
+        return super().create(validated_data)
+

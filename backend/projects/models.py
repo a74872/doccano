@@ -219,3 +219,26 @@ class Member(models.Model):
 
     class Meta:
         unique_together = ("user", "project")
+
+class DataType(models.TextChoices):
+    STRING = "string", "String"
+    INTEGER = "integer", "Integer"
+    FLOAT = "float", "Float"
+    BOOLEAN = "boolean", "Boolean"
+
+
+class Perspective(models.Model):
+    project = models.ForeignKey(
+        Project, on_delete=models.CASCADE, related_name="perspectives"
+    )
+    name = models.CharField(max_length=100)
+    data_type = models.CharField(
+        max_length=10, choices=DataType.choices, default=DataType.STRING
+    )
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, related_name="created_perspectives"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.data_type}) - Project: {self.project.name}"
