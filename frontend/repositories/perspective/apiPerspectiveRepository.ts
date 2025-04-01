@@ -3,7 +3,7 @@ import { Perspective } from "@/domain/models/perspective/perspective"; // Import
 
 export const apiPerspectiveRepository = {
   async getPerspectives(projectId: number): Promise<Perspective[]> {
-    const { data } = await axios.get(`/v1/projects/${projectId}/perspectives/`);
+        const { data } = await axios.get(`/v1/projects/${projectId}/perspectives/`);
     return data;
   },
 

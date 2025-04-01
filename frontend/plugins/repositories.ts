@@ -24,7 +24,7 @@ import { APICatalogRepository } from "@/repositories/upload/apiCatalogRepository
 import { APIParseRepository } from "@/repositories/upload/apiParseRepository";
 import { APIUserRepository } from "@/repositories/user/apiUserRepository";
 import { APISegmentationRepository } from "@/repositories/tasks/apiSegmentationRepository";
-import { APIPerspectiveRepository } from "@/repositories/perspective/apiPerspectiveRepository";
+import { apiPerspectiveRepository } from "@/repositories/perspective/apiPerspectiveRepository";
 
 export interface Repositories {
   // User

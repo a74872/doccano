@@ -88,7 +88,7 @@ class PerspectiveListCreateView(generics.ListCreateAPIView):
     def perform_destroy(self, instance):
         if instance.project.examples.exists():
             return Response(
-                {"detail": "Cannot delete perspectives already in use."},
+                {"detail": "Cannot delete perspective already in use."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         super().perform_destroy(instance)
