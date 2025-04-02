@@ -30,7 +30,7 @@
         :rules="[rules.required]"
         required
       ></v-textarea>
-      
+
       <!-- Botão para voltar diretamente para /projects -->
       <v-btn color="secondary" @click="$router.push('/projects')" class="ml-2">
         Back to projects
