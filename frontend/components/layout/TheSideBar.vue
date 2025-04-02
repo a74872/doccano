@@ -38,6 +38,7 @@ import {
   mdiViewDashboardEdit,
   mdiHome,
   mdiLabel,
+  mdiChartBox,
   mdiPlayCircleOutline
 } from '@mdi/js'
 import { getLinkToAnnotationPage } from '~/presenter/linkToAnnotationPage'
@@ -124,6 +125,14 @@ export default {
           link: 'metrics',
           isVisible: this.isProjectAdmin
         },
+
+        {
+          icon: mdiChartBox,
+          text: this.$t('Discrepancies'),
+          link: 'discrepancies',
+          isVisible: this.isProjectAdmin
+        },
+
         {
           icon: mdiCog,
           text: this.$t('settings.title'),
