@@ -44,8 +44,8 @@ export default {
       perspectives: [],
       headers: [
         { text: "Nome", value: "name" },
-        { text: "Tipo de Dado", value: "data_type" },
-        { text: "Ações", value: "actions", sortable: false },
+        { text: "Created By", value: "created_by" },
+        { text: "Description", value: "description", sortable: false },
       ],
       error: null,
     };
