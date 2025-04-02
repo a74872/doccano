@@ -8,7 +8,7 @@
       <!-- Campo para o título/pergunta da perspectiva -->
       <v-text-field
         v-model="form.name"
-        label="Pergunta da Perspetiva"
+        label="Perspective Title"
         :rules="[rules.required]"
         required
       ></v-text-field>
@@ -25,19 +25,19 @@
       <!-- Campo para a descrição -->
       <v-textarea
         v-model="form.description"
-        label="Descrição da Perspetiva"
+        label="Perspective Description"
         rows="3"
         :rules="[rules.required]"
         required
       ></v-textarea>
-
-      <v-btn type="submit" :disabled="!valid || loading" color="primary">
-        Criar Perspetiva
-      </v-btn>
-
+      
       <!-- Botão para voltar diretamente para /projects -->
       <v-btn color="secondary" @click="$router.push('/projects')" class="ml-2">
-        Voltar
+        Back to projects
+      </v-btn>
+
+      <v-btn type="submit" :disabled="!valid || loading" color="primary">
+        Create
       </v-btn>
 
       <v-progress-linear v-if="loading" indeterminate color="primary" class="mt-2"></v-progress-linear>
@@ -64,7 +64,7 @@ export default {
         { text: "Boolean", value: "boolean" },
       ],
       rules: {
-        required: (value) => !!value || "Este campo é obrigatório.",
+        required: (value) => !!value || "This field is required.",
       },
     };
   },

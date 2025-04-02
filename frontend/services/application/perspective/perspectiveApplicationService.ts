@@ -16,4 +16,8 @@ export class PerspectiveApplicationService {
     await this.repository.createPerspective(projectId, payload);
   }
 
+  async deletePerspective(projectId: number, perspectiveId: number) {
+    await this.repository.deletePerspective(projectId, perspectiveId);
+  }
+
 }

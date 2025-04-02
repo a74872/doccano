@@ -8,5 +8,8 @@ export const apiPerspectiveRepository = {
 
   async createPerspective(projectId: number, payload: Partial<Perspective>) {
     await axios.post(`/v1/projects/${projectId}/perspective`, payload);
+  },
+  async deletePerspective(projectId: number, perspectiveId: number): Promise<void> {
+    await axios.delete(`/v1/projects/${projectId}/perspective/${perspectiveId}`);
   }
 };
