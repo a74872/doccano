@@ -241,10 +241,16 @@ class Perspective(models.Model):
         choices=DataType.choices,
         default=DataType.STRING
     )
+
+    # Novo campo para descrição:
+    description = models.TextField(blank=True, default="")
+
     created_by = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, related_name="created_perspectives"
     )
     created_at = models.DateTimeField(auto_now_add=True)
+
+
 
     def __str__(self):
         return f"{self.name} ({self.data_type}) - Project: {self.project.name}"

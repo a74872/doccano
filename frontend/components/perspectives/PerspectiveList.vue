@@ -5,12 +5,12 @@
     </v-btn>
 
     <v-data-table
+      v-if="perspectives && perspectives.length"
       :headers="headers"
       :items="perspectives"
       item-value="id"
       class="mt-4"
     >
-      <!-- Corrigido para usar a abreviação `#top` ao invés de `v-slot:top` -->
       <template #top>
         <v-toolbar flat>
           <v-toolbar-title>Perspetivas</v-toolbar-title>
@@ -18,7 +18,6 @@
         </v-toolbar>
       </template>
 
-      <!-- Corrigido para usar um nome de slot válido: `#item-actions` -->
       <template #item-actions="{ item }">
         <v-btn icon @click="deletePerspective(item.id)">
           <v-icon>mdi-delete</v-icon>
@@ -26,12 +25,12 @@
       </template>
     </v-data-table>
 
-    <v-alert
-      v-if="error"
-      type="error"
-      dismissible
-      class="mt-4"
-    >
+    <!-- Se não houver registros, exibe uma mensagem -->
+    <div v-else class="mt-4">
+      <p>Nenhuma perspetiva encontrada.</p>
+    </div>
+
+    <v-alert v-if="error" type="error" dismissible class="mt-4">
       {{ error }}
     </v-alert>
   </v-container>
@@ -60,22 +59,19 @@ export default {
     await this.fetchPerspectives();
   },
   methods: {
-      async fetchPerspectives() {
-          console.log(">>> Chamando getPerspectives com projectId:", this.projectId);
-          try {
-            this.error = null;
-            const response = await this.$repositories.perspective.getPerspectives(this.projectId);
-            console.log(">>> Dados recebidos:", response);
-            // Aqui extraímos o array de resultados
-            this.perspectives = response.results;
-          } catch (error) {
-            console.error("Erro ao carregar perspetivas:", error);
-            this.error = "Erro ao carregar perspetivas. Veja o console para mais detalhes.";
-          }
-        },
-
-      // Certifique-se de definir também o método deletePerspective, se necessário.
-},
-
+    async fetchPerspectives() {
+      console.log(">>> Chamando getPerspectives com projectId:", this.projectId);
+      try {
+        this.error = null;
+        const response = await this.$repositories.perspective.getPerspectives(this.projectId);
+        console.log(">>> Dados recebidos:", response);
+        // Extrai o array de resultados se estiver paginado
+        this.perspectives = response.results;
+      } catch (error) {
+        console.error("Erro ao carregar perspetivas:", error);
+        this.error = "Erro ao carregar perspetivas. Veja o console para mais detalhes.";
+      }
+    },
+  },
 };
 </script>

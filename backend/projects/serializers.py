@@ -154,7 +154,7 @@ class PerspectiveSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Perspective
-        fields = ["id", "name", "data_type", "project_id", "created_by", "created_at"]
+        fields = ["id", "name", "data_type", "description", "project_id", "created_by", "created_at"]
 
     def __init__(self, *args, **kwargs):
         print(">>> PerspectiveSerializer __init__ chamado")
