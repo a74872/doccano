@@ -37,6 +37,7 @@ import {
   mdiDatabase,
   mdiHome,
   mdiLabel,
+  mdiMessageBadgeOutline,
   mdiPlayCircleOutline
 } from '@mdi/js'
 import { getLinkToAnnotationPage } from '~/presenter/linkToAnnotationPage'
@@ -124,7 +125,7 @@ export default {
           isVisible: this.isProjectAdmin
         },
         {
-          icon: mdiCog,
+          icon: mdiMessageBadgeOutline,
           text: 'Perspective',
           link: 'perspective',
           isVisible: this.isProjectAdmin

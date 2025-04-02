@@ -61,17 +61,19 @@ export default {
   },
   methods: {
       async fetchPerspectives() {
-        console.log(">>> Chamando getPerspectives com projectId:", this.projectId);
-        try {
-          this.error = null;
-          const data = await this.$repositories.perspective.getPerspectives(this.projectId);
-          console.log(">>> Dados recebidos:", data);
-          this.perspectives = data;
-        } catch (error) {
-          console.error("Erro ao carregar perspetivas:", error);
-          this.error = "Erro ao carregar perspetivas. Veja o console para mais detalhes.";
-        }
-      },
+          console.log(">>> Chamando getPerspectives com projectId:", this.projectId);
+          try {
+            this.error = null;
+            const response = await this.$repositories.perspective.getPerspectives(this.projectId);
+            console.log(">>> Dados recebidos:", response);
+            // Aqui extraímos o array de resultados
+            this.perspectives = response.results;
+          } catch (error) {
+            console.error("Erro ao carregar perspetivas:", error);
+            this.error = "Erro ao carregar perspetivas. Veja o console para mais detalhes.";
+          }
+        },
+
       // Certifique-se de definir também o método deletePerspective, se necessário.
 },
 

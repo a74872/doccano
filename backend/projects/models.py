@@ -5,6 +5,7 @@ from typing import Any, Dict, Optional
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.core.validators import MinLengthValidator
 from django.db import models
 from django.db.models import Manager
 from polymorphic.models import PolymorphicModel
@@ -231,9 +232,14 @@ class Perspective(models.Model):
     project = models.ForeignKey(
         Project, on_delete=models.CASCADE, related_name="perspectives"
     )
-    name = models.CharField(max_length=100)
+    name = models.CharField(
+        max_length=100,
+        validators=[MinLengthValidator(1)],  # Garante que haja pelo menos 1 caractere
+    )
     data_type = models.CharField(
-        max_length=10, choices=DataType.choices, default=DataType.STRING
+        max_length=10,
+        choices=DataType.choices,
+        default=DataType.STRING
     )
     created_by = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, related_name="created_perspectives"
