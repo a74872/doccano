@@ -72,16 +72,21 @@ class CloneProject(views.APIView):
 
 class PerspectiveListCreateView(generics.ListCreateAPIView):
     serializer_class = PerspectiveSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated & IsProjectAdmin]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ["project"]
+    ordering_fields = ["name"]
+    ordering = ["name"]
+    queryset = Perspective.objects.all()
+    lookup_url_kwarg = "perspective_id"
+    http_method_names = [
+        "get",
+        "post",
+    ]
 
     def dispatch(self, request, *args, **kwargs):
         print(">>> dispatch chamado com kwargs:", kwargs)
         return super().dispatch(request, *args, **kwargs)
-
-    def get_serializer(self, *args, **kwargs):s
-        print(">>> get_serializer chamado com args:", args, "kwargs:", kwargs)
-        return super().get_serializer(*args, **kwargs)
-
 
     def get_queryset(self):
         try:
