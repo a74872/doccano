@@ -126,7 +126,7 @@ export default {
         {
           icon: mdiCog,
           text: 'Perspective',
-          link: 'perspectives',
+          link: 'perspective',
           isVisible: this.isProjectAdmin
         }
       ]

@@ -71,24 +71,55 @@ class CloneProject(views.APIView):
 
 
 class PerspectiveListCreateView(generics.ListCreateAPIView):
-    """Listar e criar perspetivas para um projeto."""
     serializer_class = PerspectiveSerializer
-    permission_classes = [IsAuthenticated & IsProjectAdmin]
+    permission_classes = [IsAuthenticated]
+
+    def dispatch(self, request, *args, **kwargs):
+        print(">>> dispatch chamado com kwargs:", kwargs)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_serializer(self, *args, **kwargs):s
+        print(">>> get_serializer chamado com args:", args, "kwargs:", kwargs)
+        return super().get_serializer(*args, **kwargs)
+
 
     def get_queryset(self):
-        project_id = self.kwargs["project_id"]
-        return Perspective.objects.filter(project_id=project_id)
+        try:
+            project_id = self.kwargs.get("project_id")
+            print(">>> PerspectiveListCreateView: project_id recebido:", project_id)
+            qs = Perspective.objects.filter(project_id=project_id)
+            print(">>> Queryset count:", qs.count())
+            return qs
+        except Exception as e:
+            print(">>> Erro em get_queryset:", e)
+            raise e
+
+
+    def get_queryset2(self):
+        project_id = self.kwargs.get("project_id")
+        print(">>> get_queryset chamado com project_id:", project_id)
+        qs = Perspective.objects.filter(project_id=project_id)
+        print(">>> queryset count:", qs.count())
+        return qs
 
     def perform_create(self, serializer):
-        project = get_object_or_404(Project, pk=self.kwargs["project_id"])
-        serializer.save(project=project)
+        try:
+            project_id = self.kwargs.get("project_id")
+            print(">>> perform_create: project_id recebido:", project_id)
+            project = get_object_or_404(Project, pk=project_id)
+            print(">>> perform_create: Projeto encontrado:", project)
+            serializer.save(project=project)
+            print(">>> perform_create: Perspectiva criada com sucesso")
+        except Exception as e:
+            print(">>> Erro em perform_create:", e)
+            raise e
 
 
 
     def perform_destroy(self, instance):
         if instance.project.examples.exists():
             return Response(
-                {"detail": "Cannot delete perspective already in use."},
+                {"detail": "Cannot delete perspectives already in use."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         super().perform_destroy(instance)

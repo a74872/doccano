@@ -63,7 +63,7 @@ export default {
         );
 
         // Redirecionar após a criação
-        this.$router.push(`/projects/${this.$route.params.id}/perspectives`);
+        this.$router.push(`/projects/${this.$route.params.id}/perspective`);
       } catch (error) {
         console.error("Erro ao criar perspetiva:", error);
         this.error = "Erro ao criar perspetiva. Veja o console para mais detalhes.";

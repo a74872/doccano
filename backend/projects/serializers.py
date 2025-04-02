@@ -148,13 +148,19 @@ class ProjectPolymorphicSerializer(PolymorphicSerializer):
     }
 
 class PerspectiveSerializer(serializers.ModelSerializer):
-    created_by = serializers.ReadOnlyField(source="created_by.username")
+    project = serializers.PrimaryKeyRelatedField(read_only=True)
+    created_by = serializers.SerializerMethodField()
 
     class Meta:
         model = Perspective
         fields = ["id", "name", "data_type", "project", "created_by", "created_at"]
 
-    def create(self, validated_data):
-        validated_data["created_by"] = self.context["request"].user
-        return super().create(validated_data)
+    def __init__(self, *args, **kwargs):
+        print(">>> PerspectiveSerializer __init__ chamado")
+        super().__init__(*args, **kwargs)
+
+    def get_created_by(self, obj):
+        return obj.created_by.username if obj.created_by else None
+
+
 
