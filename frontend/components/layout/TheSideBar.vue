@@ -119,6 +119,7 @@ export default {
           link: 'guideline',
           isVisible: this.isProjectAdmin
         },
+
         {
           icon: mdiChartBar,
           text: this.$t('statistics.statistics'),
