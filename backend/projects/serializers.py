@@ -13,7 +13,8 @@ from .models import (
     SequenceLabelingProject,
     Speech2textProject,
     Tag,
-    TextClassificationProject, Perspective,
+    TextClassificationProject,
+    Perspective,
 )
 
 
