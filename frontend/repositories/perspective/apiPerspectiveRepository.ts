@@ -11,5 +11,10 @@ export const apiPerspectiveRepository = {
   },
   async deletePerspective(projectId: number, perspectiveId: number): Promise<void> {
     await axios.delete(`/v1/projects/${projectId}/perspective/${perspectiveId}`);
-  }
+  },
+
+  async getPerspectiveDetails(projectId: number, perspectiveId: number): Promise<Perspective> {
+    const { data } = await axios.get(`/v1/projects/${projectId}/perspective/${perspectiveId}`);
+    return data;
+  },
 };

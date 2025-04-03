@@ -20,4 +20,7 @@ export class PerspectiveApplicationService {
     await this.repository.deletePerspective(projectId, perspectiveId);
   }
 
+  async getPerspectiveDetails(projectId: number, perspectiveId: number): Promise<Perspective> {
+    return await this.repository.getPerspectiveDetails(projectId, perspectiveId);
+  }
 }
