@@ -48,11 +48,11 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn text color="primary" @click="confirmDialog = false">
+          <v-btn text color="error" @click="deleteSelectedConfirmed">
             Cancel
           </v-btn>
-          <v-btn text color="error" @click="deleteSelectedConfirmed">
-            Confirmar
+          <v-btn text color="primary" @click="confirmDialog = false">
+            Confirm
           </v-btn>
         </v-card-actions>
       </v-card>
