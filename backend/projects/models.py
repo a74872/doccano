@@ -244,6 +244,12 @@ class Perspective(models.Model):
 
     # Novo campo para descrição:
     description = models.TextField(blank=True, default="")
+    description_1 = models.TextField(blank=True, default="")
+    description_2 = models.TextField(blank=True, default="")
+    description_3 = models.TextField(blank=True, default="")
+    description_4 = models.TextField(blank=True, default="")
+    description_5 = models.TextField(blank=True, default="")
+    description_6 = models.TextField(blank=True, default="")
 
     created_by = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, related_name="created_perspectives"

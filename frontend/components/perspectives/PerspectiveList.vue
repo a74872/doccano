@@ -92,7 +92,13 @@ export default {
       headers: [
         { text: "Name", value: "name" },
         { text: "Created By", value: "created_by" },
-        { text: "Description", value: "description", sortable: false },
+        { text: "Etiquette 1", value: "description", sortable: false },
+        { text: "Etiquette 2", value: "description_1", sortable: false },
+        { text: "Etiquette 3", value: "description_2", sortable: false },
+        { text: "Etiquette 4", value: "description_3", sortable: false },
+        { text: "Etiquette 5", value: "description_4", sortable: false },
+        { text: "Etiquette 6", value: "description_5", sortable: false },
+        { text: "Etiquette 7", value: "description_6", sortable: false },
       ],
       error: null,
     };

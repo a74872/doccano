@@ -13,7 +13,8 @@ from .models import (
     SequenceLabelingProject,
     Speech2textProject,
     Tag,
-    TextClassificationProject, Perspective,
+    TextClassificationProject,
+    Perspective,
 )
 
 
@@ -154,7 +155,19 @@ class PerspectiveSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Perspective
-        fields = ["id", "name", "data_type", "description", "project_id", "created_by", "created_at"]
+        fields = ["id",
+                  "name",
+                  "data_type",
+                  "description",
+                  "description_1",
+                  "description_2",
+                  "description_3",
+                  "description_4",
+                  "description_5",
+                  "description_6",
+                  "project_id",
+                  "created_by",
+                  "created_at"]
 
     def __init__(self, *args, **kwargs):
         print(">>> PerspectiveSerializer __init__ chamado")
