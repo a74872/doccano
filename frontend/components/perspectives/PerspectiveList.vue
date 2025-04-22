@@ -52,7 +52,7 @@
             Cancel
           </v-btn>
           <v-btn text color="error" @click="deleteSelectedConfirmed">
-            Confirmar
+            Confirm
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -65,10 +65,15 @@
         <v-card-text>
           <p><strong>Name:</strong> {{ selectedPerspective?.name }}</p>
           <p><strong>Data Type:</strong> {{ selectedPerspective?.data_type }}</p>
-          <p><strong>Description:</strong> {{ selectedPerspective?.description }}</p>
           <p><strong>Created By:</strong> {{ selectedPerspective?.created_by }}</p>
           <p><strong>Created At:</strong> {{ selectedPerspective?.created_at }}</p>
-          <p><strong>Project ID:</strong> {{ selectedPerspective?.project_id }}</p>
+          <p><strong>Etiquette 1:</strong> {{ selectedPerspective?.description }}</p>
+          <p><strong>Etiquette 2:</strong> {{ selectedPerspective?.description_1 }}</p>
+          <p><strong>Etiquette 3:</strong> {{ selectedPerspective?.description_2 }}</p>
+          <p><strong>Etiquette 4:</strong> {{ selectedPerspective?.description_3 }}</p>
+          <p><strong>Etiquette 5:</strong> {{ selectedPerspective?.description_4 }}</p>
+          <p><strong>Etiquette 6:</strong> {{ selectedPerspective?.description_5 }}</p>
+          <p><strong>Etiquette 7:</strong> {{ selectedPerspective?.description_6 }}</p>
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
@@ -92,7 +97,13 @@ export default {
       headers: [
         { text: "Name", value: "name" },
         { text: "Created By", value: "created_by" },
-        { text: "Description", value: "description", sortable: false },
+        { text: "Etiquette 1", value: "description", sortable: false },
+        { text: "Etiquette 2", value: "description_1", sortable: false },
+        { text: "Etiquette 3", value: "description_2", sortable: false },
+        { text: "Etiquette 4", value: "description_3", sortable: false },
+        { text: "Etiquette 5", value: "description_4", sortable: false },
+        { text: "Etiquette 6", value: "description_5", sortable: false },
+        { text: "Etiquette 7", value: "description_6", sortable: false },
       ],
       error: null,
     };

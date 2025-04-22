@@ -15,8 +15,36 @@
                 <td>{{ perspective.data_type }}</td>
               </tr>
               <tr>
-                <td><strong>Description</strong></td>
+                <td><strong>Etiquette</strong></td>
                 <td>{{ perspective.description }}</td>
+              </tr>
+              <tr>
+                <td><strong>Etiquette 1</strong></td>
+                <td>{{ perspective.description_1 }}</td>
+              </tr>
+              <tr>
+                <td><strong>Etiquette 2</strong></td>
+                <td>{{ perspective.description_2 }}</td>
+              </tr>
+              <tr>
+                <td><strong>Etiquette 3</strong></td>
+                <td>{{ perspective.description_3 }}</td>
+              </tr>
+              <tr>
+                <td><strong>Etiquette 4</strong></td>
+                <td>{{ perspective.description_4 }}</td>
+              </tr>
+              <tr>
+                <td><strong>Etiquette 5</strong></td>
+                <td>{{ perspective.description_5 }}</td>
+              </tr>
+              <tr>
+                <td><strong>Etiquette 6</strong></td>
+                <td>{{ perspective.description_6 }}</td>
+              </tr>
+              <tr>
+                <td><strong>Etiquette 7</strong></td>
+                <td>{{ perspective.description_7 }}</td>
               </tr>
               <tr>
                 <td><strong>Created By</strong></td>
