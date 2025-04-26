@@ -64,3 +64,28 @@ class SpanTypeDistribution(LabelDistribution):
 class RelationTypeDistribution(LabelDistribution):
     model = Relation
     label_type = RelationType
+
+
+class MemberLabelChoicesAPI(APIView):
+    permission_classes = [IsAuthenticated & (IsProjectAdmin | IsProjectStaffAndReadOnly)]
+
+    def get(self, request, *args, **kwargs):
+        project_id = self.kwargs["project_id"]
+        members = Member.objects.filter(project=project_id)
+        examples = Example.objects.filter(project=project_id)
+        
+        # Get all confirmed labels for each member
+        member_choices = {}
+        for member in members:
+            confirmed_states = ExampleState.objects.filter(
+                example__in=examples,
+                confirmed_by=member.user
+            ).select_related('example')
+            
+            choices = {}
+            for state in confirmed_states:
+                choices[str(state.example.id)] = state.label.text if state.label else "No label"
+            
+            member_choices[member.user.username] = choices
+        
+        return Response(data=member_choices, status=status.HTTP_200_OK)

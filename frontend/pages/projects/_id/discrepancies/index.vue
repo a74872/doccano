@@ -24,6 +24,9 @@
         :label-types="relationTypes"
       />
     </v-col>
+    <v-col cols="12">
+      <member-label-choices :member-choices="memberChoices" />
+    </v-col>
   </v-row>
 </template>
 
@@ -31,11 +34,13 @@
 import { mapGetters } from 'vuex'
 import LabelDistribution from '~/components/metrics/LabelDistribution'
 import MemberProgress from '~/components/metrics/MemberProgress'
+import MemberLabelChoices from '~/components/discrepancies/MemberLabelChoices'
 
 export default {
   components: {
     LabelDistribution,
-    MemberProgress
+    MemberProgress,
+    MemberLabelChoices
   },
 
   layout: 'project',
@@ -53,7 +58,8 @@ export default {
       relationTypes: [],
       relationDistribution: {},
       spanTypes: [],
-      spanDistribution: {}
+      spanDistribution: {},
+      memberChoices: {}
     }
   },
 
@@ -68,20 +74,21 @@ export default {
   async created() {
     if (this.project.canDefineCategory) {
       this.categoryTypes = await this.$services.categoryType.list(this.projectId)
-      this.categoryDistribution = await this.$repositories.metrics.fetchCategoryDistribution(
+      this.categoryDistribution = await this.$repositories.discrepancies.fetchCategoryDistribution(
         this.projectId
       )
     }
     if (this.project.canDefineSpan) {
       this.spanTypes = await this.$services.spanType.list(this.projectId)
-      this.spanDistribution = await this.$repositories.metrics.fetchSpanDistribution(this.projectId)
+      this.spanDistribution = await this.$repositories.discrepancies.fetchSpanDistribution(this.projectId)
     }
     if (this.project.canDefineRelation) {
       this.relationTypes = await this.$services.relationType.list(this.projectId)
-      this.relationDistribution = await this.$repositories.metrics.fetchRelationDistribution(
+      this.relationDistribution = await this.$repositories.discrepancies.fetchRelationDistribution(
         this.projectId
       )
     }
+    this.memberChoices = await this.$repositories.discrepancies.fetchMemberLabelChoices(this.projectId)
   }
 }
 </script>

@@ -1,8 +1,10 @@
 from django.urls import path
 
+from metrics.views import MemberLabelChoicesAPI
 from .views.member import MemberDetail, MemberList, MyRole
 from .views.project import CloneProject, ProjectDetail, ProjectList, PerspectiveListCreateView, PerspectiveDetailView
 from .views.tag import TagDetail, TagList
+
 
 urlpatterns = [
     path(route="projects", view=ProjectList.as_view(), name="project_list"),
@@ -15,4 +17,5 @@ urlpatterns = [
     path(route="projects/<int:project_id>/members/<int:member_id>", view=MemberDetail.as_view(), name="member_detail"),
     path(route="projects/<int:project_id>/perspective",view=PerspectiveListCreateView.as_view(),name="perspective_list_create"),
     path(route="projects/<int:project_id>/perspective/<int:perspective_id>", view=PerspectiveDetailView.as_view(), name="perspective_detail"),
+    path(route="projects/<int:project_id>/discrepancies/member-choices", view=MemberLabelChoicesAPI.as_view(), name="member_choices"),
 ]
