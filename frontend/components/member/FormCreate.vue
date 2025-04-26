@@ -15,13 +15,17 @@
           :loading="isLoading"
           :search-input.sync="username"
           hide-no-data
+          open-on-focus
           item-text="username"
           :label="$t('members.userSearchAPIs')"
           :placeholder="$t('members.userSearchPrompt')"
           :prepend-icon="mdiAccount"
           :rules="[rules.userRequired]"
           return-object
+          @focus="fetchUsers"
+          @update:search-input="onSearch"
         />
+
         <v-select
           v-model="role"
           :items="roles"
@@ -39,7 +43,8 @@
             {{ $translateRole(props.item.name, $t('members.roles')) }}
           </template>
         </v-select>
-        <v-alert v-show="errorMessage" prominent type="error">
+
+        <v-alert v-if="errorMessage" prominent type="error">
           <v-row align="center">
             <v-col class="grow">
               {{ errorMessage }}
@@ -52,22 +57,20 @@
 </template>
 
 <script lang="ts">
-import { mdiAccount, mdiCreditCardOutline } from '@mdi/js'
-import type { PropType } from 'vue'
 import Vue from 'vue'
+import { mdiAccount, mdiCreditCardOutline } from '@mdi/js'
 import BaseCard from '@/components/utils/BaseCard.vue'
-import { MemberItem } from '~/domain/models/member/member'
 import { RoleItem } from '~/domain/models/role/role'
 import { UserItem } from '~/domain/models/user/user'
 
 export default Vue.extend({
-  components: {
-    BaseCard
-  },
+  name: 'FormCreateMember',
+
+  components: { BaseCard },
 
   props: {
     value: {
-      type: Object as PropType<MemberItem>,
+      type: Object as any,
       required: true
     },
     errorMessage: {
@@ -78,29 +81,24 @@ export default Vue.extend({
 
   data() {
     return {
-      isLoading: false,
       valid: false,
+      isLoading: false,
       users: [] as UserItem[],
       roles: [] as RoleItem[],
       username: '',
       rules: {
-        userRequired: (v: UserItem) => (!!v && !!v.username) || 'Required',
-        roleRequired: (v: RoleItem) => (!!v && !!v.name) || 'Required'
+        userRequired: (v: UserItem | null) => (!!v && !!v.username) || this.$t('generic.required'),
+        roleRequired: (v: RoleItem | null) => (!!v && !!v.name) || this.$t('generic.required')
       },
       mdiAccount,
       mdiCreditCardOutline
     }
   },
 
-  async fetch() {
-    this.isLoading = true
-    this.users = await this.$repositories.user.list(this.username)
-    this.isLoading = false
-  },
-
   computed: {
     user: {
-      get(): UserItem {
+      get(): UserItem | null {
+        if (!this.value.user) return null
         return {
           id: this.value.user,
           username: this.value.username,
@@ -108,40 +106,74 @@ export default Vue.extend({
           isSuperuser: false
         }
       },
-      set(val: MemberItem) {
-        if (val === undefined) return
-        const user = { user: val.id, username: val.username }
-        this.$emit('input', { ...this.value, ...user })
+      set(u: UserItem | null) {
+        if (!u) {
+          this.$emit('input', { ...this.value, user: null, username: '' })
+        } else {
+          this.$emit('input', {
+            ...this.value,
+            user: u.id,
+            username: u.username
+          })
+        }
       }
     },
     role: {
-      get(): RoleItem {
-        return {
-          id: this.value.role,
-          name: this.value.rolename
-        }
+      get(): RoleItem | null {
+        if (!this.value.role) return null
+        return { id: this.value.role, name: this.value.rolename }
       },
-      set(val: RoleItem) {
-        const role = { role: val.id, rolename: val.name }
-        this.$emit('input', { ...this.value, ...role })
+      set(r: RoleItem | null) {
+        if (!r) {
+          this.$emit('input', { ...this.value, role: null, rolename: '' })
+        } else {
+          this.$emit('input', {
+            ...this.value,
+            role: r.id,
+            rolename: r.name
+          })
+        }
       }
     }
   },
 
   watch: {
-    username() {
-      // Items have already been loaded
-      if (this.users.length > 0) return
-
-      // Items have already been requested
-      if (this.isLoading) return
-
-      this.$fetch()
+    username(newVal: string) {
+      // dispara busca apenas se tiver algo digitado
+      if (newVal && !this.isLoading) {
+        this.fetchUsers()
+      }
+      if (!newVal) {
+        this.users = []
+      }
     }
   },
 
   async created() {
+    // Carrega as roles apenas uma vez
     this.roles = await this.$repositories.role.list()
+  },
+
+  methods: {
+    async fetchUsers() {
+      this.isLoading = true
+      try {
+        // Atenção: DRF SearchFilter usa o param "search"
+        const page = await this.$repositories.user.list({ search: this.username })
+        console.log('Usuários recebidos (page.items):', page.items)
+        this.users = (page as any).items || []
+      } catch (err) {
+        console.error('Erro ao buscar usuários:', err)
+        this.users = []
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    onSearch(val: string) {
+      this.username = val
+      // a busca vai disparar pelo watcher
+    }
   }
 })
 </script>
