@@ -23,6 +23,33 @@ class Example(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # guarda o que cada usuário marcou: { user_id: "<label>" }
+    labels_by_user = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Mapa de user_id → label aplicado a este exemplo"
+    )
+
+    # True se algum par de valores em labels_by_user for diferente
+    has_discrepancy = models.BooleanField(
+        default=False,
+        help_text="Flag indicando se houve divergência entre labels de usuários"
+    )
+
+    # contagem bruta de cada label, ex: { "positivo": 9, "negativo": 1 }
+    label_counts = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Contagem de votos por label"
+    )
+
+    # percentual de cada label: { "positivo": 90.0, "negativo": 10.0 }
+    label_percentages = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Percentual de votos por label"
+    )
+
     @property
     def comment_count(self):
         return Comment.objects.filter(example=self.id).count()
