@@ -102,6 +102,14 @@
       @assign="assign"
       @unassign="unassign"
       @verify-discrepancies="openVerify"
+      @discussion="openDiscussion"
+    />
+
+    <discussion-dialog
+      v-if="chatExample"
+      v-model="dialogChat"
+      :project-id="projectId"
+      :example="chatExample"
     />
 
     <!-- ═══════════════ Used-Labels dialog ═══════════════ -->
@@ -186,6 +194,7 @@
 import _ from 'lodash'
 import { mapGetters } from 'vuex'
 import Vue from 'vue'
+import DiscussionDialog from '@/components/discrepancies/DiscussionDialog.vue'
 import { Distribution } from '~/domain/models/metrics/metrics'
 import { getLinkToAnnotationPage } from '~/presenter/linkToAnnotationPage'
 import DocumentList from '@/components/discrepancies/DocumentList.vue'
@@ -207,7 +216,8 @@ export default Vue.extend({
     FormAssignment,
     FormDelete,
     FormDeleteBulk,
-    FormResetAssignment
+    FormResetAssignment,
+    DiscussionDialog
   },
 
   layout: 'project',
@@ -231,7 +241,9 @@ export default Vue.extend({
       stats: [] as Array<LabelItem & { count:number; percent:number }>,
       dialogVerify : false,
       verifyRows   : [] as Array<{user:string,label:string,color:string}>,
-      verifyMsg    : ''
+      verifyMsg    : '',
+      dialogChat : false,
+      chatExample: null as ExampleDTO|null
     }
   },
 
@@ -442,8 +454,12 @@ export default Vue.extend({
         ? 'Discrepancies have been detected, different labels were used!'
         : 'No discrepancies have been detected, all labels used were equal.'
       this.dialogVerify = true
-    }
+    },
 
+    openDiscussion({ example }:{example:ExampleDTO}){
+    this.chatExample = example
+    this.dialogChat  = true
+    }
   }
 })
 </script>

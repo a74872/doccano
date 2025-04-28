@@ -108,7 +108,7 @@
           class="mb-2"
           small
           color="primary text-capitalize"
-          @click="$emit('discussion', item)"
+          @click="$emit('discussion', { example: item })"
         >
           Discussion
         </v-btn>
