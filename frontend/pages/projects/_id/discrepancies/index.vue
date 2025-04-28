@@ -101,6 +101,7 @@
       @edit="editItem"
       @assign="assign"
       @unassign="unassign"
+      @verify-discrepancies="openVerify"
     />
 
     <!-- ═══════════════ Used-Labels dialog ═══════════════ -->
@@ -128,7 +129,7 @@
                 </v-chip>
               </td>
               <td class="text-right">{{ row.count }}</td>
-              <td class="text-right">{{ row.percent.toFixed(1) }}%</td>
+              <td class="text-right">{{ row.percent }}%</td>
             </tr>
           </tbody>
         </v-simple-table>
@@ -138,6 +139,46 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <v-dialog v-model="dialogVerify" max-width="500">
+      <v-card>
+        <v-card-title class="headline">Verify discrepancies</v-card-title>
+        <v-simple-table dense>
+          <thead>
+            <tr><th>Member</th><th>Label</th></tr>
+          </thead>
+          <tbody>
+              <tr v-for="row in verifyRows" :key="row.user"
+                  :class="row.mismatch ? 'red--text text--darken-2' : ''">
+                <td>{{ row.user }}</td>
+                <td>
+                  <v-chip
+                    v-for="lab in row.labels"
+                    :key="lab.text"
+                    :color="lab.color"
+                    :text-color="$contrastColor(lab.color)"
+                    small
+                    class="me-1"
+                  >
+                    {{ lab.text }}
+                  </v-chip>
+                </td>
+              </tr>
+            </tbody>
+
+        </v-simple-table>
+
+        <v-divider />
+
+        <v-card-text class="font-italic">{{ verifyMsg }}</v-card-text>
+
+        <v-card-actions>
+          <v-spacer/>
+          <v-btn text @click="dialogVerify=false">Close</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
   </v-card>
 </template>
 
@@ -187,13 +228,17 @@ export default Vue.extend({
       isProjectAdmin: false,
       dialogStats: false,
       distribution: {} as Distribution,
-      stats: [] as Array<LabelItem & { count:number; percent:number }>
+      stats: [] as Array<LabelItem & { count:number; percent:number }>,
+      dialogVerify : false,
+      verifyRows   : [] as Array<{user:string,label:string,color:string}>,
+      verifyMsg    : ''
     }
   },
 
   async fetch() {
     this.isLoading = true
-    this.item = await this.$services.example.list(
+    this.item = await this.$services.example.list
+    (
       this.projectId,
       this.$route.query
     )
@@ -203,6 +248,27 @@ export default Vue.extend({
     }
     // Fetch project labels
     this.labels = await this.$services.categoryType.list(this.projectId)
+
+    await Promise.all(
+      this.item.items.map(async (example: ExampleDTO) => {
+        const dist = await this.$repositories.metrics.fetchCategoryDistribution(
+          this.projectId,
+          { example: example.id }           // só este example
+        )
+
+        const usedLabels = new Set<string>()
+
+        for (const user in dist) {
+          Object.entries(dist[user])        // ⇐ [label, count]
+            .filter(([, count]) => count > 0)
+            .forEach(([label]) => usedLabels.add(label))
+        }
+
+        // só há discrepância se mais de UMA label realmente usada
+        this.$set(example, 'has_discrepancy', usedLabels.size > 1)
+      })
+    )
+
     this.isLoading = false
   },
 
@@ -311,33 +377,71 @@ export default Vue.extend({
       )
     },
 
-    async openStats () {
-    // se já carregámos antes, não volta a pedir
-    if (!Object.keys(this.distribution).length) {
-      this.distribution = await this.$repositories.metrics
-        .fetchCategoryDistribution(this.projectId)
-    }
+    async openStats({ example }: { example: ExampleDTO }) {
+      this.stats = []
 
-    // somatório global (todas as pessoas) a partir do objeto
-    const sum: Record<string, number> = {}
-    for (const usr in this.distribution) {
-      for (const lbl in this.distribution[usr]) {
-        sum[lbl] = (sum[lbl] || 0) + this.distribution[usr][lbl]
+      const dist = await this.$repositories.metrics
+        .fetchCategoryDistribution(this.projectId, { example: example.id })
+
+      const sum: Record<string, number> = {}
+      for (const user in dist) {
+        for (const lbl in dist[user]) {
+          sum[lbl] = (sum[lbl] || 0) + dist[user][lbl]
+        }
       }
-    }
 
-    const total = Object.values(sum).reduce((a, b) => a + b, 0)
+      const total = Object.values(sum).reduce((a, b) => a + b, 0)
 
-    this.stats = this.labels
-      .filter(l => sum[l.text])                   // só labels usadas
-      .map(l => ({
-        ...l,
-        count: sum[l.text],
-        percent: total ? (sum[l.text] / total) * 100 : 0
-      }))
-      .sort((a, b) => b.count - a.count)
+      this.stats = this.labels
+        .filter(l => sum[l.text])
+        .map(l => ({
+          ...l,
+          count: sum[l.text],
+          percent: ((sum[l.text] / total) * 100).toFixed(1)
+        }))
+        .sort((a, b) => b.count - a.count)
 
-    this.dialogStats = true
+      this.dialogStats = true
+    },
+
+
+
+    async openVerify({ example }: { example: ExampleDTO }) {
+      const dist = await this.$repositories.metrics
+        .fetchCategoryDistribution(this.projectId, { example: example.id })
+
+      const rows: any[] = []
+
+      for (const user in dist) {
+        // entradas do tipo [['Positive', 3], ['Negative', 1]]
+        const pairs = Object.entries(dist[user])
+
+        // 1) maior contagem
+        const max  = Math.max(...pairs.map(([, c]) => c))
+
+        // 2) todas as labels que têm a contagem “max”
+        const top  = pairs.filter(([, c]) => c === max)
+
+        // 3) escolha de visual:
+        //    - se empate, mostra "Positive / Negative"
+        //    - senão só a label com maior voto
+        const labelObjs = top.map(([txt]) => {
+          const meta = this.labels.find(l => l.text === txt) || {}
+          return { text: txt, color: meta.backgroundColor || '#ccc' }
+        })
+
+        rows.push({
+          user,
+          labels: labelObjs           // ← array, não string única
+        })
+      }
+
+      const mismatch = new Set(rows.map(r => r.labels[0].text)).size > 1
+      this.verifyRows = rows.map(r => ({ ...r, mismatch }))
+      this.verifyMsg  = mismatch
+        ? 'Discrepancies have been detected, different labels were used!'
+        : 'No discrepancies have been detected, all labels used were equal.'
+      this.dialogVerify = true
     }
 
   }

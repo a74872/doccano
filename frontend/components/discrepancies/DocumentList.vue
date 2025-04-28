@@ -116,7 +116,7 @@
           class="mb-2"
           small
           color="primary text-capitalize"
-          @click="$emit('verify-discrepancies', item)"
+          @click="$emit('verify-discrepancies', { example: item })"
         >
           Verify Discrepancies
         </v-btn>

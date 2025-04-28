@@ -45,7 +45,13 @@ class LabelDistribution(abc.ABC, APIView):
 
     def get(self, request, *args, **kwargs):
         labels = self.label_type.objects.filter(project=self.kwargs["project_id"])
-        examples = Example.objects.filter(project=self.kwargs["project_id"]).values("id")
+        # --- filtra só o example pedido ---------------------------
+        example_id = request.query_params.get("example")
+        if example_id:
+            examples = Example.objects.filter(id=example_id).values("id")
+        else:
+            examples = Example.objects.filter(project=self.kwargs["project_id"]).values("id")
+        # -----------------------------------------------------------
         members = Member.objects.filter(project=self.kwargs["project_id"])
         data = self.model.objects.calc_label_distribution(examples, members, labels)
         return Response(data=data, status=status.HTTP_200_OK)

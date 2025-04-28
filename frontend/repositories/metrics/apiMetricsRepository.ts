@@ -4,11 +4,14 @@ import { Distribution, MyProgress, Progress } from '~/domain/models/metrics/metr
 export class APIMetricsRepository {
   constructor(private readonly request = ApiService) {}
 
-  async fetchCategoryDistribution(projectId: string): Promise<Distribution> {
-    const url = `/projects/${projectId}/metrics/category-distribution`
-    const response = await this.request.get(url)
-    return response.data
-  }
+  async fetchCategoryDistribution(projectId: string, params: { example?: number } = {}): Promise<Distribution> {
+  const query = new URLSearchParams()
+  if (params.example !== undefined) query.set('example', params.example.toString())
+
+  const url = `/projects/${projectId}/metrics/category-distribution?${query}`
+  const { data } = await this.request.get(url)
+  return data
+}
 
   async fetchSpanDistribution(projectId: string): Promise<Distribution> {
     const url = `/projects/${projectId}/metrics/span-distribution`
