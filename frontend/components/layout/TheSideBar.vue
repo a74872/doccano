@@ -1,11 +1,17 @@
 <template>
   <v-list dense>
-    <v-btn color="ms-4 my-1 mb-2 primary text-capitalize" nuxt @click="toLabeling">
-      <v-icon left>
-        {{ mdiPlayCircleOutline }}
-      </v-icon>
+    <!-- botão “Start annotation” --------------------------------------->
+    <v-btn
+      class="ms-4 my-1 mb-2 primary text-capitalize"
+      color
+      nuxt
+      @click="toLabeling"
+    >
+      <v-icon left>{{ mdiPlayCircleOutline }}</v-icon>
       {{ $t('home.startAnnotation') }}
     </v-btn>
+
+    <!-- menu lateral --------------------------------------------------->
     <v-list-item-group v-model="selected" mandatory>
       <v-list-item
         v-for="(item, i) in filteredItems"
@@ -13,14 +19,11 @@
         @click="$router.push(localePath(`/projects/${$route.params.id}/${item.link}`))"
       >
         <v-list-item-action>
-          <v-icon>
-            {{ item.icon }}
-          </v-icon>
+          <v-icon>{{ item.icon }}</v-icon>
         </v-list-item-action>
+
         <v-list-item-content>
-          <v-list-item-title>
-            {{ item.text }}
-          </v-list-item-title>
+          <v-list-item-title>{{ item.text }}</v-list-item-title>
         </v-list-item-content>
       </v-list-item>
     </v-list-item-group>
@@ -39,25 +42,19 @@ import {
   mdiHome,
   mdiLabel,
   mdiChartBox,
-  mdiPlayCircleOutline
+  mdiPlayCircleOutline,
+  mdiCompare               // ← novo ícone!
 } from '@mdi/js'
+
 import { getLinkToAnnotationPage } from '~/presenter/linkToAnnotationPage'
 
 export default {
   props: {
-    isProjectAdmin: {
-      type: Boolean,
-      default: false,
-      required: true
-    },
-    project: {
-      type: Object,
-      default: () => {},
-      required: true
-    }
+    isProjectAdmin: { type: Boolean, default: false, required: true },
+    project:       { type: Object,   default: () => ({}), required: true }
   },
 
-  data() {
+  data () {
     return {
       selected: 0,
       mdiPlayCircleOutline
@@ -65,20 +62,13 @@ export default {
   },
 
   computed: {
-    filteredItems() {
+    filteredItems () {
       const items = [
-        {
-          icon: mdiHome,
-          text: this.$t('projectHome.home'),
-          link: '',
-          isVisible: true
-        },
-        {
-          icon: mdiDatabase,
-          text: this.$t('dataset.dataset'),
-          link: 'dataset',
-          isVisible: true
-        },
+        /* ――― básicos ――― */
+        { icon: mdiHome,      text: this.$t('projectHome.home'), link: '',         isVisible: true },
+        { icon: mdiDatabase,  text: this.$t('dataset.dataset'), link: 'dataset',  isVisible: true },
+
+        /* ――― labels / relations (dependem de permissões) ――― */
         {
           icon: mdiLabel,
           text: this.$t('labels.labels'),
@@ -95,64 +85,38 @@ export default {
             (this.isProjectAdmin || this.project.allowMemberToCreateLabelType) &&
             this.project.canDefineRelation
         },
+
+        /* ――― admin-only ――― */
+        { icon: mdiAccount,             text: this.$t('members.members'), link: 'members',     isVisible: this.isProjectAdmin },
+        { icon: mdiCommentAccountOutline, text: 'Comments',                link: 'comments',    isVisible: this.isProjectAdmin },
+        { icon: mdiViewDashboardEdit,   text: 'Perspective',              link: 'perspective', isVisible: this.isProjectAdmin },
+        { icon: mdiBookOpenOutline,     text: this.$t('guideline.guideline'), link: 'guideline', isVisible: this.isProjectAdmin },
+        { icon: mdiChartBar,            text: this.$t('statistics.statistics'), link: 'metrics', isVisible: this.isProjectAdmin },
+
+        /* ――― sempre visíveis ――― */
+        { icon: mdiChartBox, text: this.$t('Discrepancies'),         link: 'discrepancies',        isVisible: true },
+
+        /* ↓↓↓ NOVO ITEM ↓↓↓ */
         {
-          icon: mdiAccount,
-          text: this.$t('members.members'),
-          link: 'members',
-          isVisible: this.isProjectAdmin
-        },
-        {
-          icon: mdiCommentAccountOutline,
-          text: 'Comments',
-          link: 'comments',
-          isVisible: this.isProjectAdmin
-        },
-        {
-          icon: mdiViewDashboardEdit,
-          text: 'Perspective',
-          link: 'perspective',
-          isVisible: this.isProjectAdmin
-        },
-        {
-          icon: mdiBookOpenOutline,
-          text: this.$t('guideline.guideline'),
-          link: 'guideline',
-          isVisible: this.isProjectAdmin
+          icon: mdiCompare,
+          text: 'Annotations Comparator',
+          link: 'annotations-comparator',   // crie depois a rota/página
+          isVisible: true                   // ou ajuste condição
         },
 
-        {
-          icon: mdiChartBar,
-          text: this.$t('statistics.statistics'),
-          link: 'metrics',
-          isVisible: this.isProjectAdmin
-        },
-
-        {
-          icon: mdiChartBox,
-          text: this.$t('Discrepancies'),
-          link: 'discrepancies',
-          isVisible: true
-        },
-
-        {
-          icon: mdiCog,
-          text: this.$t('settings.title'),
-          link: 'settings',
-          isVisible: this.isProjectAdmin
-        }
+        /* ――― settings (admin) ――― */
+        { icon: mdiCog, text: this.$t('settings.title'), link: 'settings', isVisible: this.isProjectAdmin }
       ]
-      return items.filter((item) => item.isVisible)
+
+      return items.filter(i => i.isVisible)
     }
   },
 
   methods: {
-    toLabeling() {
+    toLabeling () {
       const query = this.$services.option.findOption(this.$route.params.id)
-      const link = getLinkToAnnotationPage(this.$route.params.id, this.project.projectType)
-      this.$router.push({
-        path: this.localePath(link),
-        query
-      })
+      const link  = getLinkToAnnotationPage(this.$route.params.id, this.project.projectType)
+      this.$router.push({ path: this.localePath(link), query })
     }
   }
 }
