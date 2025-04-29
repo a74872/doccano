@@ -38,6 +38,27 @@ class Example(models.Model):
         ordering = ["created_at"]
 
 
+class DiscussionMessage(models.Model):
+
+    id         = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    project    = models.ForeignKey(Project, on_delete=models.CASCADE,
+                                   related_name="discussions")
+    example    = models.ForeignKey(Example, on_delete=models.CASCADE,
+                                   related_name="discussion_messages")
+    author     = models.ForeignKey(User, on_delete=models.SET_NULL,
+                                   null=True, blank=True)
+    text       = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        indexes  = [models.Index(fields=["project", "example", "created_at"])]
+
+    def __str__(self):
+        return f"{self.author} @ {self.created_at:%Y-%m-%d %H:%M}: {self.text[:30]}"
+
+
+
 class Assignment(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     project = models.ForeignKey(to=Project, on_delete=models.CASCADE, related_name="assignments")

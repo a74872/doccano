@@ -9,6 +9,7 @@ from .views.assignment import (
 from .views.comment import CommentDetail, CommentList
 from .views.example import ExampleDetail, ExampleList
 from .views.example_state import ExampleStateList
+from .views.discussion import DiscussionListCreateAPI
 
 urlpatterns = [
     path(route="assignments", view=AssignmentList.as_view(), name="assignment_list"),

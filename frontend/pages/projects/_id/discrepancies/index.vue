@@ -456,9 +456,11 @@ export default Vue.extend({
       this.dialogVerify = true
     },
 
-    openDiscussion({ example }:{example:ExampleDTO}){
-    this.chatExample = example
-    this.dialogChat  = true
+    openDiscussion ({ example }: { example: ExampleDTO }) {
+      this.chatExample = example
+      this.$nextTick(() => {            // ➜ garante que o prop já mudou
+        this.dialogChat = true          //     antes de abrir o modal
+      })
     }
   }
 })

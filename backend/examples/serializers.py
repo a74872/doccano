@@ -1,6 +1,22 @@
 from rest_framework import serializers
 
-from .models import Assignment, Comment, Example, ExampleState
+from .models import Assignment, Comment, Example, ExampleState, DiscussionMessage
+
+class DiscussionMessageSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source="author.username", read_only=True)
+
+    class Meta:
+        model  = DiscussionMessage
+        fields = (
+            "id",
+            "project",
+            "example",
+            "author",
+            "username",
+            "text",
+            "created_at",
+        )
+        read_only_fields = ("id", "project", "author", "created_at")
 
 
 class CommentSerializer(serializers.ModelSerializer):

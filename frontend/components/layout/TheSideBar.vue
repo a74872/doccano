@@ -131,7 +131,7 @@ export default {
           icon: mdiChartBox,
           text: this.$t('Discrepancies'),
           link: 'discrepancies',
-          isVisible: this.isProjectAdmin
+          isVisible: true
         },
 
         {
