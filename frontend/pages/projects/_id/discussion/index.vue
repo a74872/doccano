@@ -18,6 +18,22 @@
       >
         {{ $t('generic.add') }}
       </v-btn>
+      <v-btn
+        :disabled="!selected.length"
+        outlined
+        class="me-2"
+        @click="dialogDelete = true"
+      >
+        {{ $t('generic.delete') }}
+      </v-btn>
+      <v-btn
+        :disabled="!selected.length"
+        outlined
+        color="grey darken-1"
+        @click="dialogArchive = true"
+      >
+        Archive
+      </v-btn>
       <v-spacer/>
       <v-progress-circular v-if="isLoading" indeterminate size="20"/>
     </v-card-title>
@@ -34,16 +50,38 @@
       @cancel="dialogCreate = false"
       @save="saveDiscussion"
     />
+
+    <discussion-delete
+      :show.sync="dialogDelete"
+      :qty="selected.length"
+      title="Delete"
+      color="error"
+      @cancel="dialogDelete = false"
+      @confirm="removeSelected"
+    />
+
+    <discussion-archive
+      :show.sync="dialogArchive"
+      :qty="selected.length"
+      title="Archive"
+      color="grey darken-1"
+      @cancel="dialogArchive = false"
+      @confirm="archiveSelected"
+    />
+
+
   </v-card>
 </template>
 
 <script lang="ts">
 import Vue from 'vue'
-import DiscussionList   from '~/components/discussion/DiscussionList.vue'
-import DiscussionCreate from '~/components/discussion/DiscussionCreate.vue'
+import DiscussionList    from '~/components/discussion/DiscussionList.vue'
+import DiscussionCreate  from '~/components/discussion/DiscussionCreate.vue'
+import DiscussionDelete  from '~/components/discussion/DiscussionDelete.vue'
+import DiscussionArchive from '~/components/discussion/DiscussionArchive.vue'
 
 export default Vue.extend({
-  components: { DiscussionList, DiscussionCreate },
+  components: { DiscussionList, DiscussionCreate, DiscussionDelete, DiscussionArchive },
   layout: 'project',
   middleware: ['check-auth','auth','setCurrentProject','isProjectAdmin'],
 
@@ -53,19 +91,20 @@ export default Vue.extend({
       examples:     [] as Array<{ id:number; text:string }>,
       discussions:  [] as any[],
       selected:     [] as any[],
-      dialogCreate: false,
-      edited:       { id: null, title: '', description: '' } as any
+      dialogCreate:  false,
+      dialogDelete:  false,
+      dialogArchive: false,
+      edited:        { id: null, title: '', description: '' } as any
     }
   },
 
-  // Nuxt hook
   async fetch() {
     this.isLoading = true
     try {
-      const { items } = await this.$services.example.list(this.projectId, {})
-      this.examples = items.map(e => ({
-        id: e.id,
-        text: e.upload_name || e.filename || `${e.id}`
+      const list = await this.$services.example.list(this.projectId, {})
+      this.examples = list.items.map(e => ({
+        id:   e.id,
+        text: e.upload_name || e.filename || String(e.id)
       }))
 
       if (this.exampleId) {
@@ -80,6 +119,7 @@ export default Vue.extend({
 
   computed: {
     projectId(): string { return this.$route.params.id },
+
     exampleId: {
       get(): number { return Number(this.$route.query.example) || 0 },
       set(v: number) { this.$router.push({ query: { example: v } }) }
@@ -88,7 +128,7 @@ export default Vue.extend({
 
   watch: {
     '$route.query.example'() {
-      this.$fetch()
+      this.fetch()
     }
   },
 
@@ -98,19 +138,36 @@ export default Vue.extend({
       this.dialogCreate = true
     },
 
-    async saveDiscussion(payload: { id: string|null; title: string }) {
+    async saveDiscussion(payload: { id: string|null; title: string; description: string }) {
       try {
         await this.$repositories.discussion.create(
           this.projectId,
           this.exampleId,
-          { title: payload.title }   // <— retirado description
+          { title: payload.title, description: payload.description }
         )
         await this.fetch()
         this.dialogCreate = false
       } catch (e) {
-        // Para ver o erro retornado:
-        console.error('[Discussion] saveDiscussion error:', e.response?.data || e)
+        console.error('[Discussion] saveDiscussion error:', e)
       }
+    },
+
+    async removeSelected() {
+      await this.$repositories.discussion.bulkDelete(
+        this.projectId,
+        this.selected.map(d => d.id)
+      )
+      this.selected = []
+      await this.fetch()
+    },
+
+    async archiveSelected() {
+      await this.$repositories.discussion.archive(
+        this.projectId,
+        this.selected.map(d => d.id)
+      )
+      this.selected = []
+      await this.fetch()
     }
   }
 })
