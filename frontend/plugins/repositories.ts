@@ -26,6 +26,7 @@ import { APIUserRepository } from '@/repositories/user/apiUserRepository'
 import { APISegmentationRepository } from '~/repositories/tasks/apiSegmentationRepository'
 import { apiPerspectiveRepository } from "@/repositories/perspective/apiPerspectiveRepository";
 import { APIDiscrepanciesRepository } from '@/repositories/discrepancies/apiDiscrepanciesRepository'
+import { APIDiscussionRepository } from '@/repositories/discussion/apiDiscussionRepository'
 
 export interface Repositories {
   // User
@@ -76,6 +77,9 @@ export interface Repositories {
 
   // Discrepancies
   discrepancies: APIDiscrepanciesRepository
+
+  // Discussions
+  discussion: APIDiscussionRepository
 }
 
 declare module 'vue/types/vue' {
@@ -130,6 +134,8 @@ const repositories: Repositories = {
 
   // Perspective
   perspective: apiPerspectiveRepository,
+
+  discussion: new APIDiscussionRepository(),
 
   // Discrepancies
   discrepancies: new APIDiscrepanciesRepository()

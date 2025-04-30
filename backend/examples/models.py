@@ -9,6 +9,8 @@ from .managers import ExampleManager, ExampleStateManager
 from projects.models import Project
 
 
+
+
 class Example(models.Model):
     objects = ExampleManager()
 
@@ -36,6 +38,54 @@ class Example(models.Model):
 
     class Meta:
         ordering = ["created_at"]
+
+
+class Discussion(models.Model):
+    id          = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    project     = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="discussions_topics")
+    example     = models.ForeignKey(Example, on_delete=models.CASCADE, related_name="discussions_topics")
+    title       = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    is_resolved = models.BooleanField(default=False)
+    archived    = models.BooleanField(default=False)
+    created_at  = models.DateTimeField(auto_now_add=True)
+    updated_at  = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.title} ({'Resolved' if self.is_resolved else 'Pending'})"
+
+
+class Rule(models.Model):
+    id          = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    discussion  = models.ForeignKey(Discussion, on_delete=models.CASCADE, related_name="rules")
+    title       = models.CharField(max_length=255)
+    active      = models.BooleanField(default=True)
+    created_at  = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"Rule: {self.title}"
+
+
+class RuleVote(models.Model):
+    id          = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    rule        = models.ForeignKey(Rule, on_delete=models.CASCADE, related_name="votes")
+    user        = models.ForeignKey(User, on_delete=models.CASCADE, related_name="rule_votes")
+    vote        = models.BooleanField()
+    created_at  = models.DateTimeField(auto_now_add=True)
+    updated_at  = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = (("rule", "user"),)
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        return f"{self.user.username} → {'Yes' if self.vote else 'No'} on {self.rule.title}"
 
 
 class DiscussionMessage(models.Model):

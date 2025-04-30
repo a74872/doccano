@@ -43,7 +43,8 @@ import {
   mdiLabel,
   mdiChartBox,
   mdiPlayCircleOutline,
-  mdiCompare               // ← novo ícone!
+  mdiCompare,
+  mdiBallot
 } from '@mdi/js'
 
 import { getLinkToAnnotationPage } from '~/presenter/linkToAnnotationPage'
@@ -100,8 +101,15 @@ export default {
         {
           icon: mdiCompare,
           text: 'Annotations Comparator',
-          link: 'annotations-comparator',   // crie depois a rota/página
-          isVisible: true                   // ou ajuste condição
+          link: 'annotations-comparator',
+          isVisible: true
+        },
+
+        {
+          icon: mdiBallot,
+          text: 'Discussion',
+          link: 'discussion',
+          isVisible: true
         },
 
         /* ――― settings (admin) ――― */

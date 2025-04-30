@@ -1,6 +1,70 @@
 from rest_framework import serializers
 
-from .models import Assignment, Comment, Example, ExampleState, DiscussionMessage
+from .models import Assignment, Comment, Example, ExampleState, DiscussionMessage, Discussion, Rule, RuleVote
+
+class RuleVoteSerializer(serializers.ModelSerializer):
+    """Serializa cada voto numa regra."""
+    username = serializers.CharField(source="user.username", read_only=True)
+
+    class Meta:
+        model = RuleVote
+        fields = (
+            "id",
+            "rule",
+            "user",
+            "username",
+            "vote",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = ("id", "created_at", "updated_at")
+
+
+class RuleSerializer(serializers.ModelSerializer):
+    """Serializa cada regra dentro de uma discussão, incluindo contagem de votos."""
+    votes = RuleVoteSerializer(many=True, read_only=True)
+    yes_votes = serializers.IntegerField(source="votes.filter.vote.true.count", read_only=True)
+    no_votes = serializers.IntegerField(source="votes.filter.vote.false.count", read_only=True)
+
+    class Meta:
+        model = Rule
+        fields = (
+            "id",
+            "discussion",
+            "title",
+            "active",
+            "created_at",
+            "votes",
+            "yes_votes",
+            "no_votes",
+        )
+        read_only_fields = ("id", "created_at", "votes", "yes_votes", "no_votes")
+
+
+class DiscussionSerializer(serializers.ModelSerializer):
+    """Serializa o tópico de discussão, com as suas regras embutidas."""
+    rules = RuleSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Discussion
+        fields = (
+            "id",
+            "title",
+            "description",
+            "is_resolved",
+            "archived",
+            "created_at",
+            "updated_at",
+            "rules",
+        )
+        read_only_fields = (
+            "project",
+            "example",
+            "id",
+            "created_at",
+            "updated_at",
+            "rules",
+        )
 
 class DiscussionMessageSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source="author.username", read_only=True)

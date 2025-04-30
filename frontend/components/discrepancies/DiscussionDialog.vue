@@ -87,7 +87,7 @@ export default Vue.extend({
     async fetch () {
       this.loading = true
       try {
-        const url  = `/v1/projects/${this.projectId}/examples/${this.example.id}/discussion/`
+        const url  = `/v1/projects/${this.projectId}/examples/${this.example.id}/discussion/messages/`
         const data = await this.$axios.$get(url)
         this.messages = (Array.isArray(data) ? data : data.results).slice().reverse()
       } finally { this.loading = false }
@@ -95,7 +95,7 @@ export default Vue.extend({
     async send () {
       const text = this.draft.trim()
       if (!text) return
-      const url = `/v1/projects/${this.projectId}/examples/${this.example.id}/discussion/`
+      const url = `/v1/projects/${this.projectId}/examples/${this.example.id}/discussion/messages/`
       await this.$axios.$post(url, { example: this.example.id, text })
       this.messages.unshift({
         id : Date.now(),           // fake id até vir do backend
