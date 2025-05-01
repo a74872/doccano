@@ -1,5 +1,6 @@
 <template>
   <v-card>
+    <!-- Toolbar -->
     <v-card-title class="d-flex align-center">
       <v-select
         v-model="exampleId"
@@ -7,43 +8,108 @@
         item-text="text"
         item-value="id"
         label="Choose dataset"
-        outlined dense
+        outlined
+        dense
         class="me-4"
       />
+
       <v-btn
         :disabled="!exampleId"
         color="primary"
         class="text-capitalize me-2"
         @click="openCreate"
       >
-        {{ $t('generic.add') }}
+        Create
       </v-btn>
       <v-btn
-        :disabled="!selected.length"
-        outlined
-        class="me-2"
-        @click="dialogDelete = true"
+        :disabled="!exampleId"
+        color="error"
+        class="text-capitalize me-2"
+        @click="deleteSelected"
       >
-        {{ $t('generic.delete') }}
+        Delete
       </v-btn>
       <v-btn
-        :disabled="!selected.length"
-        outlined
-        color="grey darken-1"
-        @click="dialogArchive = true"
+        :disabled="!exampleId"
+        color="secondary"
+        class="text-capitalize"
+        @click="archiveSelected"
       >
         Archive
       </v-btn>
-      <v-spacer/>
-      <v-progress-circular v-if="isLoading" indeterminate size="20"/>
+
+      <v-spacer />
+      <v-progress-circular v-if="isLoading" indeterminate size="20" />
     </v-card-title>
 
-    <discussion-list
+    <!-- Tabela principal -->
+    <v-data-table
       v-model="selected"
+      :headers="headers"
       :items="discussions"
-      :loading="isLoading"
-    />
+      item-key="id"
+      dense
+      show-select
+      class="elevation-1"
+    >
 
+      <!-- Coluna ACTIONS -->
+<template v-slot:[`item.actions`]="{ item }">
+  <div class="d-flex flex-column align-center ">
+    <v-btn
+      color="primary"
+      dark
+      small
+      class="mt-2 mb-2"
+      :style="{ minWidth: '160px' }"
+      @click="openVote(item)"
+    >
+      Vote
+    </v-btn>
+
+    <v-btn
+      color="primary"
+      dark
+      small
+      class="mb-2"
+      :style="{ minWidth: '160px' }"
+      @click="openChat(item)"
+    >
+      Chat
+    </v-btn>
+
+    <v-btn
+      color="primary"
+      dark
+      small
+      class="mb-2"
+      :style="{ minWidth: '160px' }"
+      @click="openCreateRule(item)"
+    >
+      Create New Rule
+    </v-btn>
+
+    <v-btn
+      color="primary"
+      dark
+      small
+      class="mb-2"
+      :style="{ minWidth: '160px' }"
+      @click="openCheckVotes(item)"
+    >
+      Check Votes
+    </v-btn>
+  </div>
+</template>
+
+
+
+
+
+
+    </v-data-table>
+
+    <!-- Diálogo de criação/edição -->
     <discussion-create
       :show.sync="dialogCreate"
       :edited="edited"
@@ -51,129 +117,108 @@
       @save="saveDiscussion"
     />
 
-    <discussion-delete
-      :show.sync="dialogDelete"
-      :qty="selected.length"
-      title="Delete"
-      color="error"
-      @cancel="dialogDelete = false"
-      @confirm="removeSelected"
-    />
-
-    <discussion-archive
-      :show.sync="dialogArchive"
-      :qty="selected.length"
-      title="Archive"
-      color="grey darken-1"
-      @cancel="dialogArchive = false"
-      @confirm="archiveSelected"
-    />
-
-
+    <!-- Pop-ups vazios -->
+    <v-dialog v-model="dialogVote"   max-width="400"><v-card /></v-dialog>
+    <v-dialog v-model="dialogChat"   max-width="400"><v-card /></v-dialog>
+    <v-dialog v-model="dialogRule"   max-width="400"><v-card /></v-dialog>
+    <v-dialog v-model="dialogCheck"  max-width="400"><v-card /></v-dialog>
   </v-card>
 </template>
 
 <script lang="ts">
 import Vue from 'vue'
-import DiscussionList    from '~/components/discussion/DiscussionList.vue'
-import DiscussionCreate  from '~/components/discussion/DiscussionCreate.vue'
-import DiscussionDelete  from '~/components/discussion/DiscussionDelete.vue'
-import DiscussionArchive from '~/components/discussion/DiscussionArchive.vue'
+import DiscussionCreate from '~/components/discussion/DiscussionCreate.vue'
 
 export default Vue.extend({
-  components: { DiscussionList, DiscussionCreate, DiscussionDelete, DiscussionArchive },
+  components: { DiscussionCreate },
   layout: 'project',
-  middleware: ['check-auth','auth','setCurrentProject','isProjectAdmin'],
+  middleware: ['check-auth', 'auth', 'setCurrentProject', 'isProjectAdmin'],
 
-  data() {
+  data () {
     return {
       isLoading:    false,
-      examples:     [] as Array<{ id:number; text:string }>,
+      examples:     [] as Array<{ id: number; text: string }>,
       discussions:  [] as any[],
       selected:     [] as any[],
-      dialogCreate:  false,
-      dialogDelete:  false,
-      dialogArchive: false,
-      edited:        { id: null, title: '', description: '' } as any
+      dialogCreate: false,
+      edited:       { id: null, title: '', description: '' } as any,
+      /* Pop-ups */
+      dialogVote:   false,
+      dialogChat:   false,
+      dialogRule:   false,
+      dialogCheck:  false,
+      current:      null as any | null
     }
   },
 
-  async fetch() {
+  async fetch () {
     this.isLoading = true
     try {
-      const list = await this.$services.example.list(this.projectId, {})
-      this.examples = list.items.map(e => ({
-        id:   e.id,
-        text: e.upload_name || e.filename || String(e.id)
+      const { items } = await this.$services.example.list(this.projectId, {})
+      this.examples = items.map(e => ({
+        id: e.id,
+        text: e.upload_name || e.filename || `${e.id}`
       }))
 
-      if (this.exampleId) {
-        this.discussions = await this.$repositories.discussion.list(this.projectId, this.exampleId)
-      } else {
-        this.discussions = []
-      }
+      this.discussions = this.exampleId
+        ? await this.$repositories.discussion.list(this.projectId, this.exampleId)
+        : []
     } finally {
       this.isLoading = false
     }
   },
 
   computed: {
-    projectId(): string { return this.$route.params.id },
-
+    projectId (): string { return this.$route.params.id },
     exampleId: {
-      get(): number { return Number(this.$route.query.example) || 0 },
-      set(v: number) { this.$router.push({ query: { example: v } }) }
+      get (): number { return Number(this.$route.query.example) || 0 },
+      set (v: number) { this.$router.push({ query: { example: v } }) }
+    },
+    headers (): Array<any> {
+      return [
+        { text: 'Title',  value: 'title' },
+        { text: 'Rules',  value: 'rules' },
+        { text: 'Status',  value: 'status' },
+        { text: 'Actions', value: 'actions', width: 170}
+      ]
     }
   },
 
   watch: {
-    '$route.query.example'() {
-      this.fetch()
-    }
+    '$route.query.example' () { this.$fetch() }
   },
 
   methods: {
-    openCreate() {
+    /* Toolbar */
+    openCreate () {
       this.edited = { id: null, title: '', description: '' }
       this.dialogCreate = true
     },
-
-    async saveDiscussion(payload: { id: string|null; title: string; description: string }) {
-      try {
-        await this.$repositories.discussion.create(
-          this.projectId,
-          this.exampleId,
-          { title: payload.title, description: payload.description }
-        )
-        await this.fetch()
-        this.dialogCreate = false
-      } catch (e) {
-        console.error('[Discussion] saveDiscussion error:', e)
-      }
+    async saveDiscussion ({ title }: { title: string }) {
+      await this.$repositories.discussion.create(
+        this.projectId,
+        this.exampleId,
+        { title }
+      )
+      await this.fetch()
+      this.dialogCreate = false
     },
 
-    async removeSelected() {
-      await this.$repositories.discussion.bulkDelete(
-        this.projectId,
-        this.selected.map(d => d.id)
-      )
-      this.selected = []
-      await this.fetch()
-    },
+    /* Ações */
+    openVote       (item: any) { this.current = item; this.dialogVote  = true },
+    openChat       (item: any) { this.current = item; this.dialogChat  = true },
+    openCreateRule (item: any) { this.current = item; this.dialogRule  = true },
+    openCheckVotes (item: any) { this.current = item; this.dialogCheck = true },
 
-    async archiveSelected() {
-      await this.$repositories.discussion.archive(
-        this.projectId,
-        this.selected.map(d => d.id)
-      )
-      this.selected = []
-      await this.fetch()
-    }
+    /* Ainda por implementar */
+    deleteSelected () { /* TODO */ },
+    archiveSelected () { /* TODO */ }
   }
 })
 </script>
 
-<style scoped>
-.me-4 { margin-right: 1rem }
-.me-2 { margin-right: 0.5rem }
+<style>
+.me-4 { margin-right: 1rem; }
+.me-2 { margin-right: 0.5rem; }
+
 </style>
