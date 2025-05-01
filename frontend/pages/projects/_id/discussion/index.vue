@@ -179,7 +179,7 @@ export default Vue.extend({
         { text: 'Title',  value: 'title' },
         { text: 'Rules',  value: 'rules' },
         { text: 'Status',  value: 'status' },
-        { text: 'Actions', value: 'actions', width: 170}
+        { text: 'Actions', value: 'actions',sortable:false, width: 170}
       ]
     }
   },
