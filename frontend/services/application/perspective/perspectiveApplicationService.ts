@@ -1,5 +1,5 @@
-import { Perspective } from "@/domain/models/perspective/perspective";
 import { apiPerspectiveRepository } from "@/repositories/perspective/apiPerspectiveRepository";
+import { CreatePerspectiveDTO, Perspective } from "@/domain/models/perspective/perspective";
 
 export class PerspectiveApplicationService {
   private repository: typeof apiPerspectiveRepository;
@@ -12,8 +12,8 @@ export class PerspectiveApplicationService {
     return await this.repository.getPerspectives(projectId);
   }
 
-  async createPerspective(projectId: number, payload: Partial<Perspective>) {
-    await this.repository.createPerspective(projectId, payload);
+  async createPerspective(projectId: number, payload: CreatePerspectiveDTO): Promise<Perspective> {
+    return await this.repository.createPerspective(projectId, payload);
   }
 
   async deletePerspective(projectId: number, perspectiveId: number) {

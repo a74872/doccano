@@ -15,6 +15,8 @@ from .models import (
     Tag,
     TextClassificationProject,
     Perspective,
+    LabelPerspective,
+    ChoiceOption,
 )
 
 
@@ -148,32 +150,38 @@ class ProjectPolymorphicSerializer(PolymorphicSerializer):
         **{cls.Meta.model: cls for cls in ProjectSerializer.__subclasses__()},
     }
 
-class PerspectiveSerializer(serializers.ModelSerializer):
-    project_id = serializers.IntegerField(source="project.id", read_only=True)
-    created_by = serializers.SerializerMethodField()
-    created_at = serializers.DateTimeField(read_only=True)  # Opcional, se quiser reforçar
+class ChoiceOptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = ChoiceOption
+        fields = ["value"]
+
+class LabelSerializer(serializers.ModelSerializer):
+    options = ChoiceOptionSerializer(many=True, required=False)
 
     class Meta:
-        model = Perspective
-        fields = ["id",
-                  "name",
-                  "data_type",
-                  "description",
-                  "description_1",
-                  "description_2",
-                  "description_3",
-                  "description_4",
-                  "description_5",
-                  "description_6",
-                  "project_id",
-                  "created_by",
-                  "created_at"]
+        model  = LabelPerspective
+        fields = ["name", "data_type", "int_min", "int_max", "options"]
 
-    def __init__(self, *args, **kwargs):
-        print(">>> PerspectiveSerializer __init__ chamado")
-        super().__init__(*args, **kwargs)
+    def create(self, validated_data):
+        opts = validated_data.pop("options", [])
+        label = super().create(validated_data)
+        if label.data_type == LabelPerspective.DataType.CHOICE:
+            for option in opts[:4]:                       # garante máximo de 4
+                ChoiceOption.objects.create(label=label, **option)
+        return label
 
-    def get_created_by(self, obj):
-        return obj.created_by.username if obj.created_by else None
+class PerspectiveSerializer(serializers.ModelSerializer):
+    labels = LabelSerializer(many=True)
+    created_by = serializers.SlugRelatedField(slug_field='username', read_only=True)
 
+    class Meta:
+        model  = Perspective
+        fields = ["id", "title", "project", "labels", "created_by", "created_at"]
+        read_only_fields = ("project",)
 
+    def create(self, validated_data):
+        labels = validated_data.pop("labels")
+        perspective = Perspective.objects.create(**validated_data)
+        for lbl in labels:
+            LabelSerializer().create({**lbl, "perspective": perspective})
+        return perspective

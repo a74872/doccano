@@ -1,20 +1,22 @@
 <template>
   <v-container class="form-container">
     <v-card class="form-card">
+      <!-- header -->
       <v-card-title class="headline primary white--text d-flex align-center">
         <v-icon left color="white">mdi-pencil</v-icon>
         Create New Perspective
       </v-card-title>
 
+      <!-- body -->
       <v-card-text class="form-content">
-        <!-- Display any error messages -->
+        <!-- global error -->
         <v-alert
           v-if="error"
           type="error"
           dismissible
-          class="custom-alert error-alert"
           border="left"
           elevation="2"
+          class="custom-alert error-alert"
           colored-border
         >
           <div class="d-flex align-center">
@@ -23,125 +25,128 @@
           </div>
         </v-alert>
 
-        <v-form ref="form" v-model="valid" @submit.prevent="submitForm">
-          <!-- Perspective Title -->
+        <v-form ref="form" v-model="valid" lazy-validation @submit.prevent="submitForm">
+          <!-- perspective title -->
           <div class="input-group">
             <v-text-field
-              v-model="form.name"
+              v-model.trim="title"
               label="Perspective Title"
-              :error-messages="fieldErrors.name"
-              :error="!!fieldErrors.name"
               :rules="[rules.required]"
-              required
-              outlined
-              dense
-              class="input-field"
-              prepend-inner-icon="mdi-format-title"
+              :error-messages="fieldErrors.title"
+              outlined dense prepend-inner-icon="mdi-format-title"
               hint="Enter a descriptive title for your perspective"
               persistent-hint
-            ></v-text-field>
+            />
           </div>
 
-          <!-- Number of descriptions selector -->
-          <div class="input-group">
-            <v-select
-              v-model="numberOfDescriptions"
-              :items="descriptionOptions"
-              label="Number of Etiquettes"
-              :rules="[rules.required]"
-              required
+          <!-- labels builder -->
+          <div class="labels-container">
+            <v-card
+              v-for="(label, index) in labels"
+              :key="index"
+              class="mb-4 pa-4"
               outlined
-              dense
-              class="input-field"
-              prepend-inner-icon="mdi-format-list-numbered"
-              hint="Choose how many etiquettes you need (1-7)"
-              persistent-hint
-            ></v-select>
-          </div>
+            >
+              <div class="d-flex justify-space-between align-center mb-3">
+                <span class="subtitle-2 font-weight-bold">Label {{ index + 1 }}</span>
+                <v-btn icon small @click="removeLabel(index)" v-if="labels.length > 1">
+                  <v-icon small>mdi-delete</v-icon>
+                </v-btn>
+              </div>
 
-          <!-- Description fields -->
-          <div class="descriptions-container">
-            <!-- Main description -->
-            <div class="input-group">
-              <v-textarea
-                v-model="form.description"
-                label="Etiquette 1"
-                :error-messages="fieldErrors.description"
-                :error="!!fieldErrors.description"
+              <!-- name -->
+              <v-text-field
+                v-model.trim="label.name"
+                label="Label name"
+                :error-messages="getLabelError(index, 'name')"
                 :rules="[rules.required]"
-                required
-                outlined
-                dense
-                rows="2"
-                auto-grow
-                class="input-field compact-textarea"
-                prepend-inner-icon="mdi-label"
-                hint="Enter the main etiquette description"
-                persistent-hint
-              ></v-textarea>
-            </div>
+                outlined dense prepend-inner-icon="mdi-label"
+              />
 
-            <!-- Additional descriptions -->
-            <div v-if="numberOfDescriptions > 1" class="additional-descriptions">
-              <v-slide-y-transition group>
+              <!-- type selector -->
+              <v-select
+                v-model="label.data_type"
+                :items="dataTypes"
+                label="Data type"
+                item-text="text"
+                item-value="value"
+                :error-messages="getLabelError(index, 'data_type')"
+                :rules="[rules.required]"
+                outlined dense prepend-inner-icon="mdi-database"
+                @change="onTypeChange(index)"
+              />
+
+              <!-- int rules -->
+              <div v-if="label.data_type === 'int'" class="d-flex flex-wrap">
+                <v-text-field
+                  v-model.number="label.int_min"
+                  type="number"
+                  label="Min"
+                  class="mr-2 flex-grow-1"
+                  :error-messages="getLabelError(index, 'int_min')"
+                  :rules="[rules.required, rules.isNumber]"
+                  outlined dense
+                />
+                <v-text-field
+                  v-model.number="label.int_max"
+                  type="number"
+                  label="Max"
+                  class="flex-grow-1"
+                  :error-messages="getLabelError(index, 'int_max')"
+                  :rules="[rules.required, rules.isNumber]"
+                  outlined dense
+                />
+              </div>
+
+              <!-- choice options -->
+              <div v-if="label.data_type === 'choice'">
                 <div
-                  v-for="n in (numberOfDescriptions - 1)"
-                  :key="n"
-                  class="input-group"
+                  v-for="(opt, optIdx) in label.options"
+                  :key="optIdx"
+                  class="d-flex align-center mb-2"
                 >
-                  <v-textarea
-                    v-model="form['description_' + n]"
-                    :label="'Etiquette ' + (n + 1)"
-                    :error-messages="fieldErrors['description_' + n]"
-                    :error="!!fieldErrors['description_' + n]"
+                  <v-text-field
+                    v-model.trim="label.options[optIdx]"
+                    :label="`Option ${optIdx + 1}`"
+                    :error-messages="getOptionError(index, optIdx)"
                     :rules="[rules.required]"
-                    required
-                    outlined
-                    dense
-                    rows="2"
-                    auto-grow
-                    class="input-field compact-textarea"
-                    prepend-inner-icon="mdi-label-outline"
-                    :hint="'Enter description for etiquette ' + (n + 1)"
-                    persistent-hint
-                  ></v-textarea>
+                    outlined dense class="flex-grow-1"
+                  />
+                  <v-btn icon small class="ml-2" @click="removeOption(index, optIdx)" v-if="label.options.length > 1">
+                    <v-icon small>mdi-close</v-icon>
+                  </v-btn>
                 </div>
-              </v-slide-y-transition>
-            </div>
+                <v-btn small text color="primary" @click="addOption(index)" :disabled="label.options.length >= 4">
+                  <v-icon left small>mdi-plus</v-icon>
+                  Add option
+                </v-btn>
+              </div>
+            </v-card>
+
+            <!-- add label button -->
+            <v-btn color="primary" outlined @click="addLabel" :disabled="labels.length >= 7">
+              <v-icon left>mdi-plus</v-icon>
+              Add label
+            </v-btn>
           </div>
         </v-form>
       </v-card-text>
 
+      <!-- footer actions -->
       <v-card-actions class="actions-container">
-        <v-btn
-          color="secondary"
-          @click="$router.push('/projects')"
-          class="action-btn"
-          outlined
-        >
+        <v-btn outlined color="secondary" @click="$router.push('/projects')">
           <v-icon left>mdi-arrow-left</v-icon>
           Back to Projects
         </v-btn>
-        <v-spacer></v-spacer>
-        <v-btn
-          type="submit"
-          color="primary"
-          class="action-btn"
-          @click="submitForm"
-          :loading="loading"
-        >
+        <v-spacer />
+        <v-btn color="primary" :loading="loading" @click="submitForm">
           <v-icon left>mdi-check</v-icon>
           Create Perspective
         </v-btn>
       </v-card-actions>
 
-      <!-- Loading indicator -->
-      <v-progress-linear
-        v-if="loading"
-        indeterminate
-        color="primary"
-        class="mt-2"
-      ></v-progress-linear>
+      <!-- loading bar -->
+      <v-progress-linear v-if="loading" indeterminate color="primary" class="mt-2" />
     </v-card>
   </v-container>
 </template>
@@ -150,101 +155,166 @@
 export default {
   data() {
     return {
-      valid: false,
+      title: '',
+      labels: [this.newLabel()],
       loading: false,
+      valid: true,
       error: null,
-      numberOfDescriptions: 1,
-      descriptionOptions: [1, 2, 3, 4, 5, 6, 7],
-      form: {
-        name: "",
-        description: "",
-      },
-      fieldErrors: {
-        name: "",
-        description: "",
-        description_1: "",
-        description_2: "",
-        description_3: "",
-        description_4: "",
-        description_5: "",
-        description_6: "",
-      },
+      fieldErrors: {},
+      dataTypes: [
+        { text: 'Texto livre', value: 'string' },
+        { text: 'Número inteiro', value: 'int' },
+        { text: 'Opção de lista', value: 'choice' }
+      ],
       rules: {
-        required: (value) => !!value || "This field is required.",
-      },
-    };
+        required: v => !!v || 'Campo obrigatório',
+        isNumber: v => (v === null || v === undefined || v === '') || !isNaN(v) || 'Precisa ser um número'
+      }
+    }
   },
   methods: {
-    validateForm() {
-      // Reset all error messages
-      Object.keys(this.fieldErrors).forEach(key => {
-        this.fieldErrors[key] = "";
-      });
-
-      let isValid = true;
-
-      // Validate name
-      if (!this.form.name.trim()) {
-        this.fieldErrors.name = "O título da perspetiva é obrigatório";
-        isValid = false;
-      }
-
-      // Validate main description
-      if (!this.form.description.trim()) {
-        this.fieldErrors.description = "A primeira etiqueta é obrigatória";
-        isValid = false;
-      }
-
-      // Validate additional descriptions based on selected number
-      for (let i = 1; i < this.numberOfDescriptions; i++) {
-        const fieldName = `description_${i}`;
-        if (!this.form[fieldName]?.trim()) {
-          this.fieldErrors[fieldName] = `A etiqueta ${i + 1} é obrigatória`;
-          isValid = false;
-        }
-      }
-
-      return isValid;
+    // factory
+    newLabel() {
+      return { name: '', data_type: 'string', int_min: null, int_max: null, options: [''] }
     },
-    async submitForm() {
-      if (!this.validateForm()) {
-        this.error = "Por favor, preencha todos os campos obrigatórios";
-        return;
+
+    // add / remove labels
+    addLabel() {
+      if (this.labels.length < 7) this.labels.push(this.newLabel())
+    },
+    removeLabel(idx) {
+      this.labels.splice(idx, 1)
+    },
+
+    // type change resets auxiliary fields
+    onTypeChange(idx) {
+      const lbl = this.labels[idx]
+      if (lbl.data_type === 'int') {
+        lbl.options = ['']
+      } else if (lbl.data_type === 'choice') {
+        lbl.int_min = null
+        lbl.int_max = null
+        if (!lbl.options.length) lbl.options = ['']
+      } else {
+        lbl.int_min = null
+        lbl.int_max = null
+        lbl.options = ['']
       }
-      
-      try {
-        this.error = null;
-        this.loading = true;
+    },
 
-        const payload = {
-          name: this.form.name,
-          description: this.form.description,
-        };
+    // options helpers
+    addOption(labelIdx) {
+      const opts = this.labels[labelIdx].options
+      if (opts.length < 4) opts.push('')
+    },
+    removeOption(labelIdx, optIdx) {
+      const opts = this.labels[labelIdx].options
+      opts.splice(optIdx, 1)
+    },
 
-        if (this.numberOfDescriptions > 1) {
-          for (let i = 1; i < this.numberOfDescriptions; i++) {
-            payload[`description_${i}`] = this.form[`description_${i}`];
+    // validation helpers
+    getLabelError(labelIdx, field) {
+      const key = `label_${labelIdx}_${field}`
+      return this.fieldErrors[key] || ''
+    },
+    getOptionError(labelIdx, optIdx) {
+      const key = `label_${labelIdx}_option_${optIdx}`
+      return this.fieldErrors[key] || ''
+    },
+
+    validateForm() {
+      this.fieldErrors = {}
+      let ok = true
+
+      // title
+      if (!this.title.trim()) {
+        this.fieldErrors.title = 'Título é obrigatório'
+        ok = false
+      }
+
+      // labels validations
+      this.labels.forEach((lbl, idx) => {
+        if (!lbl.name.trim()) {
+          this.fieldErrors[`label_${idx}_name`] = 'Nome é obrigatório'
+          ok = false
+        }
+        if (!lbl.data_type) {
+          this.fieldErrors[`label_${idx}_data_type`] = 'Tipo é obrigatório'
+          ok = false
+        }
+        if (lbl.data_type === 'int') {
+          if (lbl.int_min === null || lbl.int_min === '') {
+            this.fieldErrors[`label_${idx}_int_min`] = 'Min é obrigatório'
+            ok = false
+          }
+          if (lbl.int_max === null || lbl.int_max === '') {
+            this.fieldErrors[`label_${idx}_int_max`] = 'Max é obrigatório'
+            ok = false
+          }
+          if (lbl.int_min !== null && lbl.int_max !== null && Number(lbl.int_min) >= Number(lbl.int_max)) {
+            this.fieldErrors[`label_${idx}_int_max`] = 'Max deve ser maior que Min'
+            ok = false
           }
         }
+        if (lbl.data_type === 'choice') {
+          const filledOpts = lbl.options.filter(o => o.trim())
+          if (filledOpts.length < 2) {
+            this.fieldErrors[`label_${idx}_option_0`] = 'Pelo menos 2 opções'
+            ok = false
+          }
+          lbl.options.forEach((o, oIdx) => {
+            if (!o.trim()) {
+              this.fieldErrors[`label_${idx}_option_${oIdx}`] = 'Obrigatório'
+              ok = false
+            }
+          })
+        }
+      })
 
-        await this.$repositories.perspective.createPerspective(
-          this.$route.params.id,
-          payload
-        );
-
-        this.$router.push(`/projects/${this.$route.params.id}/perspective`);
-      } catch (error) {
-        console.error("Error creating perspective:", error);
-        this.error = "Failed to create perspective. Check console for details.";
-      } finally {
-        this.loading = false;
-      }
+      return ok
     },
-  },
-};
+
+    async submitForm() {
+      if (!this.validateForm()) {
+        this.error = 'Por favor, corrija os erros destacados'
+        return
+      }
+
+
+      const payload = {
+        title: this.title.trim(),
+        labels: this.labels.map(l => {
+          const base = { name: l.name.trim(), data_type: l.data_type }
+          if (l.data_type === 'int') {
+            base.int_min = l.int_min
+            base.int_max = l.int_max
+          }
+          if (l.data_type === 'choice') {
+            base.options = l.options.filter(o => o.trim()).map(value => ({ value }))
+          }
+          return base
+        })
+
+      }
+      console.log('payload que vai para o POST:', JSON.stringify(payload, null, 2))
+
+      try {
+        this.loading = true
+        await this.$repositories.perspective.createPerspective(this.$route.params.id, payload)
+        this.$router.push(`/projects/${this.$route.params.id}/perspective`)
+      } catch (e) {
+        console.error('DRF response:', e.response?.data || e)
+        this.error = 'Erro ao criar perspectiva. Veja o console para detalhes.'
+      } finally {
+        this.loading = false
+      }
+    }
+  }
+}
 </script>
 
 <style scoped>
+/* manteve a maior parte dos estilos anteriores */
 .form-container {
   max-width: 800px;
   margin: 0 auto;
@@ -252,28 +322,18 @@ export default {
   height: calc(100vh - 48px);
   animation: slideIn 0.5s ease;
 }
-
 @keyframes slideIn {
-  from { 
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to { 
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-
 .form-card {
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
   height: 100%;
   background-color: #ffffff;
 }
-
 .form-content {
   flex: 1;
   overflow-y: auto;
@@ -281,102 +341,8 @@ export default {
   max-height: calc(100vh - 200px);
   background-color: #fafafa;
 }
-
-.input-group {
-  margin-bottom: 24px;
-  transition: all 0.3s ease;
-}
-
-.input-field {
-  transition: all 0.3s ease;
-}
-
-.input-field:hover {
-  transform: translateY(-1px);
-}
-
-.descriptions-container {
-  margin-top: 16px;
-  background-color: #ffffff;
-  padding: 16px;
-  border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.additional-descriptions {
-  margin-top: 8px;
-}
-
-.actions-container {
-  padding: 16px 24px;
-  background-color: #f5f5f5;
-  position: sticky;
-  bottom: 0;
-  z-index: 1;
-  box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.05);
-}
-
-.action-btn {
-  min-width: 160px;
-  text-transform: none;
-  letter-spacing: 0.5px;
-  font-weight: 500;
-  transition: all 0.3s ease;
-}
-
-.action-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.custom-alert {
-  margin: 0 0 24px 0 !important;
-  border-radius: 8px !important;
-  font-weight: 500;
-  animation: fadeIn 0.3s ease;
-}
-
-.compact-textarea {
-  max-height: 100px;
-  overflow-y: auto;
-}
-
-.compact-textarea .v-text-field__slot {
-  min-height: 40px;
-}
-
-.compact-textarea textarea {
-  font-size: 0.9rem;
-  line-height: 1.4;
-  padding: 8px 0;
-}
-
-.input-field.error--text {
-  border-color: #dc3545 !important;
-}
-
-.input-field.error--text .v-input__slot {
-  border-color: #dc3545 !important;
-}
-
-.input-field.error--text .v-messages__message {
-  color: #dc3545;
-  font-size: 0.75rem;
-  margin-top: 4px;
-  animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.v-card-title {
-  padding: 16px 24px;
-  background: linear-gradient(45deg, #1976d2, #2196f3);
-}
-
-.v-card-title .v-icon {
-  margin-right: 12px;
-}
+.input-group { margin-bottom: 24px; }
+.labels-container { margin-top: 16px; }
+.actions-container { padding: 16px 24px; background-color: #f5f5f5; }
+.custom-alert { margin-bottom: 24px !important; }
 </style>
