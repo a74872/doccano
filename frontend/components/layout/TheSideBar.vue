@@ -44,7 +44,8 @@ import {
   mdiChartBox,
   mdiPlayCircleOutline,
   mdiCompare,
-  mdiBallot
+  mdiBallot,
+  mdiFileChartCheckOutline
 } from '@mdi/js'
 
 import { getLinkToAnnotationPage } from '~/presenter/linkToAnnotationPage'
@@ -109,6 +110,13 @@ export default {
           icon: mdiBallot,
           text: 'Discussion',
           link: 'discussion',
+          isVisible: true
+        },
+
+        {
+          icon: mdiFileChartCheckOutline,   // ← novo item “Statistics”
+          text: 'Statistics',
+          link: 'statistics',
           isVisible: true
         },
 
