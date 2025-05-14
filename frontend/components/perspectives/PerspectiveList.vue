@@ -2,47 +2,97 @@
   <v-container>
     <!-- action buttons -->
     <div class="d-flex align-center mb-4">
-      <v-btn color="primary" class="custom-btn" min-width="180" height="40"
-             @click="$router.push(`/projects/${projectId}/perspective/add`)">
+      <!-- Create -->
+      <v-btn
+        color="primary"
+        class="custom-btn"
+        min-width="180"
+        height="40"
+        @click="goToAdd"
+      >
         <v-icon left class="mr-2">mdi-plus</v-icon>
         Create new Perspective
       </v-btn>
 
-      <v-btn color="error" class="ml-4 custom-btn" min-width="180" height="40"
-             :disabled="!selected.length" @click="confirmDialog = true">
+      <!-- Delete -->
+      <v-btn
+        color="error"
+        class="ml-4 custom-btn"
+        min-width="180"
+        height="40"
+        :disabled="!selected.length"
+        @click="confirmDialog = true"
+      >
         <v-icon left class="mr-2">mdi-delete</v-icon>
         Delete Perspective
       </v-btn>
 
-      <v-btn color="info" class="ml-4 custom-btn" min-width="180" height="40"
-             :disabled="selected.length !== 1" @click="openDetailsDialog">
+      <!-- View -->
+      <v-btn
+        color="info"
+        class="ml-4 custom-btn"
+        min-width="180"
+        height="40"
+        :disabled="selected.length !== 1"
+        @click="openDetailsDialog"
+      >
         <v-icon left class="mr-2">mdi-eye</v-icon>
         View Details
+      </v-btn>
+
+      <!-- Edit (new) -->
+      <v-btn
+        color="success"
+        class="ml-4 custom-btn"
+        min-width="180"
+        height="40"
+        :disabled="selected.length !== 1"
+        @click="openEditDialog"
+      >
+        <v-icon left class="mr-2">mdi-pencil</v-icon>
+        Edit
       </v-btn>
     </div>
 
     <!-- perspectives table -->
-    <v-data-table v-if="perspectives.length"
-                  v-model="selected" :headers="headers" :items="perspectives"
-                  item-value="id" show-select class="elevation-1"
-                  :items-per-page="10"
-                  :footer-props="{
-                    'items-per-page-options':[5,10,15,20],
-                    'items-per-page-text':'Items per page:'
-                  }">
+    <v-data-table
+      v-if="perspectives.length"
+      v-model="selected"
+      :headers="headers"
+      :items="perspectives"
+      item-value="id"
+      show-select
+      class="elevation-1"
+      :items-per-page="10"
+      :footer-props="{ 'items-per-page-options':[5,10,15,20], 'items-per-page-text':'Items per page:' }"
+    >
       <template #top>
         <v-toolbar flat>
           <v-toolbar-title>Perspectives</v-toolbar-title>
           <v-spacer></v-spacer>
         </v-toolbar>
       </template>
+
+      <!-- custom cell for labels -->
+      <template v-slot:[`item.labelsCol`]="{ item }">
+        <div class="d-flex flex-wrap">
+          <v-chip
+            v-for="lbl in item.labels"
+            :key="lbl.id"
+            small
+            class="ma-1 white--text"
+            :color="chipColor(lbl.data_type)"
+          >
+            {{ lbl.name }}
+          </v-chip>
+        </div>
+      </template>
     </v-data-table>
 
     <div v-else class="mt-4 empty-state">No perspective has been found.</div>
 
     <!-- error alert -->
-    <v-alert v-if="error" type="error" dismissible border="left" elevation="2"
-             colored-border class="custom-alert error-alert">
+    <v-alert v-if="error" type="error" dismissible border="left" elevation="2" colored-border class="custom-alert error-alert">
       <v-icon left class="mr-2">mdi-alert-circle</v-icon>
       {{ error }}
     </v-alert>
@@ -58,7 +108,7 @@
         <v-card-text>
           Are you sure you want to delete the following perspectives?
           <ul class="pl-4 mt-3">
-            <li v-for="item in selected" :key="item.id">{{ item.title }}</li>
+            <li v-for="item in selected" :key="item.id" class="mb-1">{{ item.title }}</li>
           </ul>
           <v-alert type="warning" dense class="mt-4" border="left" colored-border>
             This action cannot be undone.
@@ -66,7 +116,7 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn text color="grey" @click="confirmDialog=false">Cancel</v-btn>
+          <v-btn text color="grey" @click="confirmDialog = false">Cancel</v-btn>
           <v-btn text color="primary" @click="deleteSelectedConfirmed">Confirm</v-btn>
         </v-card-actions>
       </v-card>
@@ -77,20 +127,41 @@
       <v-card>
         <v-card-title class="headline primary white--text">Perspective details</v-card-title>
         <v-card-text v-if="selectedPerspective" class="details-content">
-          <div class="detail-item"><span class="detail-label">Title:</span>{{ selectedPerspective.title }}</div>
-          <div class="detail-item"><span class="detail-label">Created by:</span>{{ selectedPerspective.created_by || '—' }}</div>
-          <div class="detail-item"><span class="detail-label">Created at:</span>{{ formatDate(selectedPerspective.created_at) }}</div>
+          <div class="detail-item">
+            <span class="detail-label">Title:</span>
+            <span class="detail-value title-value">{{ selectedPerspective.title }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Created by:</span>
+            <span class="detail-value">{{ selectedPerspective.created_by || '—' }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Created at:</span>
+            <span class="detail-value">{{ formatDate(selectedPerspective.created_at) }}</span>
+          </div>
           <div class="detail-item" v-for="lbl in selectedPerspective.labels" :key="lbl.id">
             <span class="detail-label">{{ lbl.name }} ({{ lbl.data_type }})</span>
-            <span>
-              <template v-if="lbl.data_type==='int'">{{ lbl.int_min }} – {{ lbl.int_max }}</template>
-              <template v-else-if="lbl.data_type==='choice'">{{ lbl.options.map(o=>o.value).join(', ') }}</template>
+            <span class="detail-value">
+              <template v-if="lbl.data_type==='int'">
+                {{ lbl.int_min }} – {{ lbl.int_max }}
+              </template>
+              <template v-else-if="lbl.data_type==='choice'">
+                <v-chip
+                  v-for="opt in lbl.options"
+                  :key="opt.value"
+                  small
+                  class="ma-1"
+                  color="grey lighten-3"
+                >
+                  {{ opt.value }}
+                </v-chip>
+              </template>
             </span>
           </div>
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn text color="primary" @click="detailsDialog=false">Close</v-btn>
+          <v-btn text color="primary" @click="detailsDialog = false">Close</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -110,9 +181,9 @@ export default {
       error: null,
       headers: [
         { text: 'Title', value: 'title' },
-        { text: 'Labels', value: 'labelsStr', sortable: false },
+        { text: 'Labels', value: 'labelsCol', sortable: false },
         { text: 'Created By', value: 'created_by' },
-        { text: 'Created At', value: 'created_at' }
+        { text: 'Created At', value: 'created_at_fmt' }
       ]
     }
   },
@@ -121,13 +192,33 @@ export default {
     await this.fetchPerspectives()
   },
   methods: {
+    openEditDialog () {
+      if (this.selected.length !== 1) return
+      // navega para página de edição (ou abre um diálogo) – ajuste conforme tiver
+      const pid = this.selected[0].id
+      this.$router.push(`/projects/${this.projectId}/perspective/${pid}/edit`)
+    },
+    goToAdd() {
+      this.$router.push(`/projects/${this.projectId}/perspective/add`)
+    },
+    chipColor(type) {
+      switch (type) {
+        case 'int':
+          return 'deep-purple lighten-2'
+        case 'choice':
+          return 'blue lighten-2'
+        default:
+          return 'grey'
+      }
+    },
     async fetchPerspectives() {
       try {
         const response = await this.$repositories.perspective.getPerspectives(this.projectId)
         const items = Array.isArray(response.results) ? response.results : response
         this.perspectives = items.map(p => ({
           ...p,
-          labelsStr: p.labels.map(l => l.name).join(', ')
+          labelsCol: p.labels, // for slot column
+          created_at_fmt: this.formatDate(p.created_at)
         }))
       } catch (e) {
         console.error(e)
@@ -160,18 +251,54 @@ export default {
       }
     },
     formatDate(date) {
-      return date ? new Date(date).toLocaleString() : '—'
+      return date ? new Date(date).toLocaleString('pt-PT') : '—'
     }
   }
 }
 </script>
 
 <style scoped>
-.custom-btn { text-transform:none;font-weight:500;letter-spacing:.5px;padding:0 20px;box-shadow:0 3px 5px rgba(0,0,0,.1);transition:all .3s ease; }
-.custom-btn:hover { transform:translateY(-1px);box-shadow:0 4px 6px rgba(0,0,0,.15); }
-.empty-state { color:rgba(0,0,0,.38);font-style:italic;text-align:center;padding:24px; }
-.details-content { padding:20px;background:#f8f9fa;border-radius:4px; }
-.detail-item { display:flex;justify-content:space-between;margin-bottom:12px; }
-.detail-label { font-weight:500;margin-right:8px; }
-.custom-alert { margin:16px 0 !important;border-radius:8px !important; }
-</style>
+.custom-btn {
+  text-transform: none;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  padding: 0 20px;
+  box-shadow: 0 3px 5px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+.custom-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+}
+.empty-state {
+  color: rgba(0, 0, 0, 0.38);
+  font-style: italic;
+  text-align: center;
+  padding: 24px;
+}
+.details-content {
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 4px;
+}
+
+.detail-label {
+  min-width: 140px;
+  font-weight: 600;
+  color: #555;
+}
+.detail-value {
+  flex: 1;
+}
+.title-value {
+  font-weight: 700;
+  margin-left: 8px;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.detail-label {
+  font-weight

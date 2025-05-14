@@ -185,3 +185,16 @@ class PerspectiveSerializer(serializers.ModelSerializer):
         for lbl in labels:
             LabelSerializer().create({**lbl, "perspective": perspective})
         return perspective
+
+    def update(self, instance, validated_data):
+        labels_data = validated_data.pop("labels", [])
+
+        instance.title = validated_data.get("title", instance.title)
+        instance.save()
+
+        instance.labels.all().delete()
+
+        for lbl in labels_data:
+            LabelSerializer().create({**lbl, "perspective": instance})
+
+        return instance

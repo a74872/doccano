@@ -16,6 +16,10 @@ export class PerspectiveApplicationService {
     return await this.repository.createPerspective(projectId, payload);
   }
 
+  async updatePerspective(projectId: number, perspectiveId: number, payload: UpdatePerspectiveDTO): Promise<void> {
+    await this.repository.updatePerspective(projectId, perspectiveId, payload)
+  }
+
   async deletePerspective(projectId: number, perspectiveId: number) {
     await this.repository.deletePerspective(projectId, perspectiveId);
   }

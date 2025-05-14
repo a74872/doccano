@@ -28,4 +28,10 @@ export const apiPerspectiveRepository = {
     const { data } = await axios.get(`/v1/projects/${projectId}/perspective/${perspectiveId}`);
     return data;
   },
+
+  async updatePerspective(projectId: number, perspectiveId: number, payload: any) {
+    console.log('[PUT] /v1/projects/' + projectId + '/perspective/' + perspectiveId + '/edit')
+    await axios.put(`/v1/projects/${projectId}/perspective/${perspectiveId}/edit`,payload);
+  },
+
 };

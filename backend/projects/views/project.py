@@ -6,7 +6,7 @@ from rest_framework import filters, generics, status, views
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.generics import RetrieveDestroyAPIView
-
+from rest_framework.generics import UpdateAPIView
 from projects.models import Project
 from projects.permissions import IsProjectAdmin, IsProjectStaffAndReadOnly
 from projects.serializers import ProjectPolymorphicSerializer
@@ -128,6 +128,7 @@ class PerspectiveListCreateView(generics.ListCreateAPIView):
                 {"detail": "Cannot delete perspectives already in use."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
         super().perform_destroy(instance)
 
 class PerspectiveDetailView(RetrieveDestroyAPIView):
@@ -135,3 +136,12 @@ class PerspectiveDetailView(RetrieveDestroyAPIView):
     permission_classes = [IsAuthenticated & IsProjectAdmin]  # Ou ajuste conforme necessário
     queryset = Perspective.objects.all()
     lookup_url_kwarg = "perspective_id"
+
+class PerspectiveEditView(UpdateAPIView):
+
+    queryset = Perspective.objects.all()
+    serializer_class = PerspectiveSerializer
+    permission_classes = [IsAuthenticated & IsProjectAdmin]
+    lookup_url_kwarg = "perspective_id"
+    http_method_names = ["put", "patch"]
+
