@@ -134,9 +134,9 @@
 
       <!-- footer actions -->
       <v-card-actions class="actions-container">
-        <v-btn outlined color="secondary" @click="$router.push('/projects')">
+        <v-btn outlined color="secondary" @click="$router.back()">
           <v-icon left>mdi-arrow-left</v-icon>
-          Back to Projects
+          Back
         </v-btn>
         <v-spacer />
         <v-btn color="primary" :loading="loading" @click="submitForm">
