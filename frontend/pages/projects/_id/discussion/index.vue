@@ -44,14 +44,18 @@
     </v-card-title>
 
     <!-- Tabela principal -->
+   <div style="max-height: 600px; overflow-y:auto">
     <v-data-table
       v-model="selected"
       :headers="headers"
-      :items="discussions"
+      :items="unresolvedList"
       item-key="id"
       dense
       show-select
       class="elevation-1"
+
+      :items-per-page="-1"
+      hide-default-footer
     >
 
           <!-- Coluna ACTIONS -->
@@ -122,6 +126,7 @@
 
 
     </v-data-table>
+    </div>
 
     <!-- Diálogo de criação/edição -->
     <discussion-create
@@ -179,26 +184,56 @@
       </v-card>
     </v-dialog>
 
-        <!-- Archived (expansível) -->
-    <v-expansion-panels
-      v-model="archivedOpen"
-      accordion
-      class="mt-4"
-    >
+         <!-- Archived (expansível) -->
+    <v-expansion-panels v-model="archivedOpen" accordion class="mt-4">
       <v-expansion-panel>
         <v-expansion-panel-header>
           Archived Discussions ({{ archivedList.length }})
         </v-expansion-panel-header>
 
         <v-expansion-panel-content>
-          <v-data-table
-            :headers="headers"
-            :items="archivedList"
-            dense
-            class="elevation-1"
-          >
-            <!--  ▸ copie aqui os slots “rules” / “actions” se quiser  -->
-          </v-data-table>
+          <div style="max-height: 600px; overflow-y:auto">
+            <v-data-table
+              :headers="headers"
+              :items="archivedList"
+              item-key="id"
+              dense
+              class="elevation-1"
+              :items-per-page="-1"
+              hide-default-footer
+            >
+
+              <!-- SLOT RULES -->
+              <template #[`item.rules`]="{ item }">
+                <div class="d-flex flex-wrap">
+                  <v-chip
+                    v-for="r in item.rules"
+                    :key="r.id"
+                    small
+                    class="ma-1"
+                    color="primary"
+                    text-color="white"
+                  >
+                    {{ r.title }}
+                  </v-chip>
+                </div>
+              </template>
+
+              <!-- SLOT ACTIONS -->
+              <template #[`item.actions`]="{ item }">
+                <div class="d-flex flex-column align-center">
+                  <v-btn
+                    small dark color="primary" class="my-1"
+                    :style="{ minWidth: '160px' }"
+                    @click="openCheckVotes(item)"
+                  >
+                    Check Votes
+                  </v-btn>
+                </div>
+              </template>
+
+            </v-data-table>
+          </div>
         </v-expansion-panel-content>
       </v-expansion-panel>
     </v-expansion-panels>
@@ -215,20 +250,26 @@ import DiscussionRuleForm from '~/components/discussion/DiscussionRuleForm.vue'
 import DiscussionVoteDialog from '~/components/discussion/DiscussionVoteDialog.vue'
 import DiscussionVotesSummaryDialog from '~/components/discussion/DiscussionVotesSummaryDialog.vue'
 
+/** devolve 'Resolved' (≥70 % num único voto) ou 'Unresolved' */
 function computeStatus (disc: any): 'Resolved' | 'Unresolved' {
-  // junta todos os títulos de regra escolhidos pelos votos
-  const votos = disc.rules.flatMap((r:any) =>
+  /* se ainda não existem regras, continua por resolver */
+  if (!Array.isArray(disc.rules) || disc.rules.length === 0) {
+    return 'Unresolved'
+  }
+
+  /* junta todos os títulos de regra votados */
+  const votos = disc.rules.flatMap((r: any) =>
     (r.votes || []).map(() => r.title)
   )
 
-  if (votos.length === 0) return 'Unresolved'
+  if (votos.length === 0) return 'Unresolved'   // ninguém votou ainda
 
-  // contagens por regra
+  /* contagens por regra */
   const cont: Record<string, number> = {}
   votos.forEach(t => { cont[t] = (cont[t] || 0) + 1 })
 
   const top   = Math.max(...Object.values(cont))
-  const ratio = top / votos.length          // maior parcela
+  const ratio = top / votos.length               // maioria dominante
 
   return ratio >= 0.7 ? 'Resolved' : 'Unresolved'
 }

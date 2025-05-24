@@ -12,13 +12,14 @@ export class APIDiscussionRepository {
   constructor(private readonly request = ApiService) {}
 
   // lista todos os tópicos de discussion para um dado project+example
-  async list(projectId: string, exampleId: number): Promise<DiscussionDTO[]> {
-    const url = `/projects/${projectId}/examples/${exampleId}/discussion/`
-    const res = await this.request.get(url)
-    // se paginado, res.data.results; senão res.data direto
-    return Array.isArray(res.data)
-      ? res.data
-      : res.data.results
+  async list (projectId: string, exampleId: number): Promise<DiscussionDTO[]> {
+    // 1000 é muito acima do que teremos na prática
+    const url =
+      `/projects/${projectId}` +
+      `/examples/${exampleId}/discussion/?page_size=1000`
+
+    const { data } = await this.request.get(url)
+    return Array.isArray(data) ? data : data.results   // já vem completo
   }
 
   // criação

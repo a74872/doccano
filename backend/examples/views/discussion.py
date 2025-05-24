@@ -43,6 +43,7 @@ class DiscussionDetailAPI(generics.RetrieveUpdateDestroyAPIView):
     queryset           = Discussion.objects.all()
     serializer_class   = DiscussionSerializer
     permission_classes = [permissions.IsAuthenticated]
+    pagination_class = None
 
     def perform_update(self, serializer):
         proj = serializer.instance.project
