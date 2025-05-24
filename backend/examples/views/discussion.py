@@ -1,8 +1,8 @@
 from rest_framework import generics, permissions
 from rest_framework.exceptions import PermissionDenied
 
-from examples.models import Discussion, Rule, RuleVote, DiscussionMessage, Example
-from examples.serializers import DiscussionMessageSerializer, DiscussionSerializer, RuleSerializer, RuleVoteSerializer
+from examples.models import Discussion, Rule, RuleVote, DiscussionMessage, Example, DiscussionThreadMessage
+from examples.serializers import DiscussionMessageSerializer, DiscussionSerializer, RuleSerializer, RuleVoteSerializer, DiscussionThreadMessageSerializer
 from projects.models import Project, Member
 
 
@@ -86,18 +86,21 @@ class RuleDetailAPI(generics.RetrieveUpdateDestroyAPIView):
 
 class RuleVoteListCreateAPI(generics.ListCreateAPIView):
     """
-    GET  /v1/rules/{rule_id}/votes/
-    POST /v1/rules/{rule_id}/votes/
+    POST /v1/projects/<project>/discussion/examples/<example>/<discussion>/rules/<rule>/votes/
     """
     serializer_class   = RuleVoteSerializer
     permission_classes = [permissions.IsAuthenticated]
     pagination_class   = None
 
-    def get_queryset(self):
-        return RuleVote.objects.filter(rule_id=self.kwargs["rule_id"])
-
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user, rule_id=self.kwargs["rule_id"])
+        # usa rule_id da rota, NÃO do payload
+        RuleVote.objects.update_or_create(
+            rule_id = self.kwargs["rule_id"],
+            user    = self.request.user,
+            defaults = {"vote": serializer.validated_data.get("vote", True)
+            }
+        )
+
 
 class DiscussionMessageCreateAPI(generics.ListCreateAPIView):
     """
@@ -141,5 +144,46 @@ class DiscussionMessageCreateAPI(generics.ListCreateAPIView):
         serializer.save(
             project=project,
             example=example,
+            author=self.request.user
+        )
+
+# examples/views/discussion.py
+class DiscussionThreadMessageAPI(generics.ListCreateAPIView):
+    """
+    GET  /v1/discussions/<discussion_id>/messages/
+    POST /v1/discussions/<discussion_id>/messages/   {text:"…"}
+    """
+    serializer_class   = DiscussionThreadMessageSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class   = None
+
+    # ───────── helpers ─────────
+    def _discussion(self) -> Discussion:
+        return Discussion.objects.select_related("project").get(
+            pk=self.kwargs["discussion_id"]
+        )
+
+    def _assert_member(self, project: Project):
+        if not Member.objects.filter(project=project,
+                                     user=self.request.user).exists():
+            raise PermissionDenied("Not a member of this project")
+
+    # ───────── list (GET) ─────────
+    def get_queryset(self):
+        discussion = self._discussion()
+        self._assert_member(discussion.project)
+        return (
+            DiscussionThreadMessage.objects
+            .filter(discussion=discussion)
+            .select_related("author")
+            .order_by("-created_at")
+        )
+
+    # ───────── create (POST) ─────────
+    def perform_create(self, serializer):
+        discussion = self._discussion()
+        self._assert_member(discussion.project)
+        serializer.save(
+            discussion=discussion,
             author=self.request.user
         )

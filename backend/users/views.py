@@ -51,32 +51,16 @@ class UserCreation(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         user = self.perform_create(serializer)
 
-        # Atualiza os campos first_name e last_name
-        # Log dos valores recebidos do payload
-        first_name = request.data.get('first_name', '')
-        last_name = request.data.get('last_name', '')
-        logger.debug(f"Received first_name: '{first_name}', last_name: '{last_name}'")
+        # atribui nomes e flags
+        user.first_name = request.data.get('first_name', '')
+        user.last_name = request.data.get('last_name', '')
+        user.is_superuser = request.data.get('is_superuser') in [True, 'true', 'True', 1]
+        user.is_staff = user.is_superuser or (request.data.get('is_staff') in [True, 'true', 'True', 1])
 
-        # Atribui os campos ao usuário
-        user.first_name = first_name
-        user.last_name = last_name
-        logger.debug(f"User fields before permission update: first_name='{user.first_name}', last_name='{user.last_name}'")
+        # grava tudo de uma vez
+        user.save()
 
-        if request.data.get('is_superuser') in [True, 'true', 'True', 1]:
-            user.is_superuser = True
-            user.is_staff = True
-            user.save()
-        headers = self.get_success_headers(serializer.data)
-        if request.data.get('is_staff') in [True, 'true', 'True', 1]:
-            user.is_superuser = False
-            user.is_staff = True
-            user.save()
-        if request.data.get('is_staff' and "is_superuser") in [True, 'true', 'True', 1]:
-            user.is_superuser = True
-            user.is_staff = True
-            user.save()
-
-        logger.debug(f"User fields after saving: first_name='{user.first_name}', last_name='{user.last_name}'")
+        # responde
         headers = self.get_success_headers(serializer.data)
         return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED, headers=headers)
 

@@ -1,23 +1,16 @@
 from rest_framework import serializers
 
-from .models import Assignment, Comment, Example, ExampleState, DiscussionMessage, Discussion, Rule, RuleVote
+from .models import Assignment, Comment, Example, ExampleState, DiscussionMessage, Discussion, Rule, RuleVote, DiscussionThreadMessage
 
 class RuleVoteSerializer(serializers.ModelSerializer):
-    """Serializa cada voto numa regra."""
     username = serializers.CharField(source="user.username", read_only=True)
 
     class Meta:
-        model = RuleVote
-        fields = (
-            "id",
-            "rule",
-            "user",
-            "username",
-            "vote",
-            "created_at",
-            "updated_at",
-        )
-        read_only_fields = ("id", "created_at", "updated_at")
+        model  = RuleVote
+        fields = ("id", "rule", "user", "username",
+                  "vote", "created_at", "updated_at")
+        read_only_fields = ("id", "rule", "user",
+                            "created_at", "updated_at")
 
 
 class RuleSerializer(serializers.ModelSerializer):
@@ -38,7 +31,7 @@ class RuleSerializer(serializers.ModelSerializer):
             "yes_votes",
             "no_votes",
         )
-        read_only_fields = ("id", "created_at", "votes", "yes_votes", "no_votes")
+        read_only_fields = ("id", "discussion", "created_at", "votes", "yes_votes", "no_votes")
 
 
 class DiscussionSerializer(serializers.ModelSerializer):
@@ -81,6 +74,21 @@ class DiscussionMessageSerializer(serializers.ModelSerializer):
             "created_at",
         )
         read_only_fields = ("id", "project", "author", "created_at")
+
+class DiscussionThreadMessageSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source="author.username", read_only=True)
+
+    class Meta:
+        model  = DiscussionThreadMessage
+        fields = (
+            "id",
+            "discussion",
+            "author",
+            "username",
+            "text",
+            "created_at",
+        )
+        read_only_fields = ("id", "discussion", "author", "created_at")
 
 
 class CommentSerializer(serializers.ModelSerializer):

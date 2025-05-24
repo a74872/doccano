@@ -107,6 +107,31 @@ class DiscussionMessage(models.Model):
     def __str__(self):
         return f"{self.author} @ {self.created_at:%Y-%m-%d %H:%M}: {self.text[:30]}"
 
+class DiscussionThreadMessage(models.Model):
+    """
+    Mensagens ligadas *directamente* a um tópico Discussion
+    (não ao Example) – cada discussão guarda o seu próprio chat.
+    """
+    id         = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    discussion = models.ForeignKey(
+        Discussion,
+        on_delete=models.CASCADE,
+        related_name="messages"          #  discussion.messages.all()
+    )
+    author     = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True, blank=True
+    )
+    text       = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        indexes  = [models.Index(fields=["discussion", "created_at"])]
+
+    def __str__(self):
+        return f"{self.author} @ {self.created_at:%Y-%m-%d %H:%M}: {self.text[:30]}"
 
 
 class Assignment(models.Model):

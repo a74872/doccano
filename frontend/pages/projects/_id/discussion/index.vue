@@ -22,6 +22,7 @@
         Create
       </v-btn>
       <v-btn
+        v-if="isProjectAdmin"
         :disabled="!exampleId"
         color="error"
         class="text-capitalize me-2"
@@ -30,14 +31,14 @@
         Delete
       </v-btn>
       <v-btn
-        :disabled="!exampleId"
+        v-if="isProjectAdmin"
+        :disabled="!canArchive"
         color="secondary"
         class="text-capitalize"
         @click="archiveSelected"
       >
         Archive
       </v-btn>
-
       <v-spacer />
       <v-progress-circular v-if="isLoading" indeterminate size="20" />
     </v-card-title>
@@ -53,7 +54,7 @@
       class="elevation-1"
     >
 
-      <!-- Coluna ACTIONS -->
+          <!-- Coluna ACTIONS -->
 <template v-slot:[`item.actions`]="{ item }">
   <div class="d-flex flex-column align-center ">
     <v-btn
@@ -75,7 +76,7 @@
       :style="{ minWidth: '160px' }"
       @click="openChat(item)"
     >
-      Chat
+      Chat 💬
     </v-btn>
 
     <v-btn
@@ -102,9 +103,22 @@
   </div>
 </template>
 
-
-
-
+<!-- Coluna RULES: mostra chips com o título de cada regra -->
+<template v-slot:[`item.rules`]="{ item }">
+  <div class="d-flex flex-wrap">
+    <v-chip
+      v-for="rule in item.rules"
+      :key="rule.id"
+      small
+      class="ma-1"
+      color="primary"
+      text-color="white"
+    >
+      {{ rule.title }}
+    </v-chip>
+    <!-- se preferir só quantidade, use: {{ item.rules.length }} -->
+  </div>
+</template>
 
 
     </v-data-table>
@@ -117,22 +131,119 @@
       @save="saveDiscussion"
     />
 
-    <!-- Pop-ups vazios -->
-    <v-dialog v-model="dialogVote"   max-width="400"><v-card /></v-dialog>
-    <v-dialog v-model="dialogChat"   max-width="400"><v-card /></v-dialog>
-    <v-dialog v-model="dialogRule"   max-width="400"><v-card /></v-dialog>
-    <v-dialog v-model="dialogCheck"  max-width="400"><v-card /></v-dialog>
+    <discussion-vote-dialog
+      v-if="current"
+      v-model="dialogVote"
+      :project-id="projectId"
+      :example-id="exampleId"
+      :discussion="current"
+      @voted="$fetch()"
+    />
+
+    <discussion-rules-dialog
+      v-if="chatDiscussion"
+      v-model="dialogChat"
+      :project-id="projectId"
+      :example-id="exampleId"
+      :discussion="chatDiscussion"
+    />
+
+    <discussion-rule-form
+      :show.sync="dialogRule"
+      @save="createRules"
+    />
+
+    <discussion-votes-summary-dialog
+      v-if="current"
+      :show.sync="dialogCheck"
+      :project-id="projectId"
+      :example-id="exampleId"
+      :discussion="current"
+    />
+
+    <!-- ——— CONFIRMAR eliminação ——— -->
+    <v-dialog v-model="confirmDelete" max-width="420">
+      <v-card>
+        <v-card-title class="headline">
+          Delete {{ selected.length }} discussion<span v-if="selected.length>1">s</span>?
+        </v-card-title>
+        <v-card-text>
+          This action is irreversible.
+        </v-card-text>
+
+        <v-card-actions>
+          <v-spacer/>
+          <v-btn text @click="confirmDelete=false">Cancel</v-btn>
+          <v-btn color="error" text @click="doDelete">Delete</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+        <!-- Archived (expansível) -->
+    <v-expansion-panels
+      v-model="archivedOpen"
+      accordion
+      class="mt-4"
+    >
+      <v-expansion-panel>
+        <v-expansion-panel-header>
+          Archived Discussions ({{ archivedList.length }})
+        </v-expansion-panel-header>
+
+        <v-expansion-panel-content>
+          <v-data-table
+            :headers="headers"
+            :items="archivedList"
+            dense
+            class="elevation-1"
+          >
+            <!--  ▸ copie aqui os slots “rules” / “actions” se quiser  -->
+          </v-data-table>
+        </v-expansion-panel-content>
+      </v-expansion-panel>
+    </v-expansion-panels>
+
+
   </v-card>
 </template>
 
 <script lang="ts">
 import Vue from 'vue'
 import DiscussionCreate from '~/components/discussion/DiscussionCreate.vue'
+import DiscussionRulesDialog   from '~/components/discussion/DiscussionRulesDialog.vue'
+import DiscussionRuleForm from '~/components/discussion/DiscussionRuleForm.vue'
+import DiscussionVoteDialog from '~/components/discussion/DiscussionVoteDialog.vue'
+import DiscussionVotesSummaryDialog from '~/components/discussion/DiscussionVotesSummaryDialog.vue'
+
+function computeStatus (disc: any): 'Resolved' | 'Unresolved' {
+  // junta todos os títulos de regra escolhidos pelos votos
+  const votos = disc.rules.flatMap((r:any) =>
+    (r.votes || []).map(() => r.title)
+  )
+
+  if (votos.length === 0) return 'Unresolved'
+
+  // contagens por regra
+  const cont: Record<string, number> = {}
+  votos.forEach(t => { cont[t] = (cont[t] || 0) + 1 })
+
+  const top   = Math.max(...Object.values(cont))
+  const ratio = top / votos.length          // maior parcela
+
+  return ratio >= 0.7 ? 'Resolved' : 'Unresolved'
+}
+
 
 export default Vue.extend({
-  components: { DiscussionCreate },
+  components: {
+  DiscussionCreate,
+  DiscussionRulesDialog,
+  DiscussionRuleForm,
+  DiscussionVoteDialog,
+  DiscussionVotesSummaryDialog
+  },
   layout: 'project',
-  middleware: ['check-auth', 'auth', 'setCurrentProject', 'isProjectAdmin'],
+  middleware: ['check-auth', 'auth', 'setCurrentProject'],
 
   data () {
     return {
@@ -141,32 +252,44 @@ export default Vue.extend({
       discussions:  [] as any[],
       selected:     [] as any[],
       dialogCreate: false,
+      isProjectAdmin: false,
       edited:       { id: null, title: '', description: '' } as any,
       /* Pop-ups */
       dialogVote:   false,
-      dialogChat:   false,
-      dialogRule:   false,
       dialogCheck:  false,
-      current:      null as any | null
+      confirmDelete: false,
+      dialogChat : false,
+      chatDiscussion: null as any|null,
+      dialogRule: false,
+      current:      null as any | null,
+      unresolved: [] as any[],
+      archived  : [] as any[],
+      archivedOpen: null as number|null,
     }
   },
 
   async fetch () {
-    this.isLoading = true
-    try {
-      const { items } = await this.$services.example.list(this.projectId, {})
-      this.examples = items.map(e => ({
-        id: e.id,
-        text: e.upload_name || e.filename || `${e.id}`
-      }))
+      this.isLoading = true
+      try {
+        const { items } = await this.$services.example.list(this.projectId, {})
+        this.examples = items.map(e => ({
+          id: e.id,
+          text: e.upload_name || e.filename || `${e.id}`
+        }))
 
-      this.discussions = this.exampleId
-        ? await this.$repositories.discussion.list(this.projectId, this.exampleId)
-        : []
-    } finally {
-      this.isLoading = false
-    }
-  },
+        const data = this.exampleId
+          ? await this.$repositories.discussion.list(this.projectId, this.exampleId)
+          : []
+
+        // acrescenta status
+        this.discussions = data.map((d:any) => ({
+          ...d,
+          status: computeStatus(d)       // ← «Resolved» | «Unresolved»
+        }))
+      } finally {
+        this.isLoading = false
+      }
+    },
 
   computed: {
     projectId (): string { return this.$route.params.id },
@@ -174,14 +297,34 @@ export default Vue.extend({
       get (): number { return Number(this.$route.query.example) || 0 },
       set (v: number) { this.$router.push({ query: { example: v } }) }
     },
+
+    unresolvedList () {
+      return this.discussions.filter((d:any) => !d.archived)
+    },
+    archivedList () {
+      return this.discussions.filter((d:any) => d.archived)
+    },
+    canArchive () {
+      return this.selected.length > 0 &&
+             this.selected.every((d:any) => d.status === 'Resolved')
+    },
+
     headers (): Array<any> {
       return [
         { text: 'Title',  value: 'title' },
         { text: 'Rules',  value: 'rules' },
         { text: 'Status',  value: 'status' },
+        { text: 'Description',  value: 'description' },
         { text: 'Actions', value: 'actions',sortable:false, width: 170}
       ]
     }
+  },
+
+    async created() {
+    const member = await this.$repositories.member.fetchMyRole(
+      this.projectId
+    )
+    this.isProjectAdmin = member.isProjectAdmin
   },
 
   watch: {
@@ -189,30 +332,123 @@ export default Vue.extend({
   },
 
   methods: {
-    /* Toolbar */
+
     openCreate () {
       this.edited = { id: null, title: '', description: '' }
       this.dialogCreate = true
     },
-    async saveDiscussion ({ title }: { title: string }) {
+
+    async saveDiscussion (
+      { title, description }: { title: string; description: string }
+    ) {
       await this.$repositories.discussion.create(
         this.projectId,
         this.exampleId,
-        { title }
+        { title, description }
       )
-      await this.fetch()
+
+      await this.$fetch()          // ← em vez de this.fetch()
+
       this.dialogCreate = false
     },
 
-    /* Ações */
-    openVote       (item: any) { this.current = item; this.dialogVote  = true },
-    openChat       (item: any) { this.current = item; this.dialogChat  = true },
-    openCreateRule (item: any) { this.current = item; this.dialogRule  = true },
-    openCheckVotes (item: any) { this.current = item; this.dialogCheck = true },
+    openVote (discussion:any){
+      this.current   = discussion
+      this.dialogVote = true
+    },
 
-    /* Ainda por implementar */
-    deleteSelected () { /* TODO */ },
-    archiveSelected () { /* TODO */ }
+    openChat (discussion: any) {
+        this.chatDiscussion = discussion
+        this.$nextTick(() => { this.dialogChat = true })
+      },
+
+    /* ————————————————— abrir o diálogo ————————————————— */
+    openCreateRule (discussion: any) {
+      this.current    = discussion
+      this.dialogRule = true
+    },
+
+    /* ————————————————— gravar regras ————————————————— */
+    async createRules (titles: string[]) {
+      if (!this.current) return
+
+      await Promise.all(
+        titles.map(t =>
+          this.$repositories.rule.create(
+            this.projectId,                       // ① projectId
+            this.exampleId,                       // ② exampleId (da query)
+            this.current.id,                      // ③ discussionId
+            { title: t }
+          )
+        )
+      )
+
+      await this.$fetch()
+    },
+
+    openCheckVotes (discussion:any){
+      this.current    = discussion
+      this.dialogCheck = true
+    },
+
+    /* ────────────────────────────── DELETE ────────────────────────────── */
+    deleteSelected () {
+      if (this.selected.length === 0) return
+      this.confirmDelete = true
+    },
+
+    async doDelete () {
+      this.confirmDelete = false
+      if (!this.selected.length) return
+
+      this.isLoading = true
+      try {
+        await Promise.all(
+          this.selected.map((d:any) =>
+            this.$repositories.discussion.remove(
+              this.projectId,        // project
+              this.exampleId,        // dataset escolhido
+              d.id                   // discussion UUID
+            )
+          )
+        )
+
+        this.selected = []
+        await this.$fetch()
+      } catch (err:any) {
+        console.error(err.response?.data || err)
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+
+
+    async archiveSelected () {
+      if (!this.canArchive) return
+
+      this.isLoading = true
+      try {
+        await Promise.all(
+          this.selected.map((d:any) =>
+            this.$repositories.discussion.patch(
+              this.projectId,
+              this.exampleId,
+              d.id,
+              { archived: true }
+            )
+          )
+        )
+        this.selected = []
+        await this.$fetch()
+      } catch (err:any) {
+        console.error(err.response?.data || err)
+      } finally {
+        this.isLoading = false
+      }
+    }
+
+
   }
 })
 </script>

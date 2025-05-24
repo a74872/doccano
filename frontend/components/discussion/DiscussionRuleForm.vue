@@ -1,30 +1,65 @@
 <template>
   <v-dialog
-    :value="localShow"
-    max-width="400"
-    @input="val => $emit('update:show', val)"
+    :value="show"
+    max-width="500"
+    @input="$emit('update:show', $event)"
+    scrollable
   >
     <v-card>
-      <v-card-title class="headline">New rule</v-card-title>
+      <v-card-title class="headline">New rule(s)</v-card-title>
+
+      <v-divider/>
+
+      <!-- lista dinâmica de inputs -->
       <v-card-text>
-        <v-text-field
-          v-model="localTitle"
-          label="Rule title"
-          outlined
-          dense
-        />
+        <v-slide-y-transition group appear>
+          <div v-for="(rule, idx) in rules" :key="idx" class="d-flex align-center mb-2">
+            <v-text-field
+              v-model="rules[idx]"
+              outlined dense hide-details
+              :counter="60"
+              label="Rule title"
+              class="flex-grow-1"
+              :rules="[v => !!v.trim() || 'Required']"
+            />
+            <v-btn
+              icon
+              class="ms-2"
+              @click="remove(idx)"
+              v-if="rules.length > 1"
+            >
+              <v-icon small>mdi-close</v-icon>
+            </v-btn>
+          </div>
+        </v-slide-y-transition>
+
+        <v-btn
+          small text
+          color="primary"
+          class="mt-2"
+          :disabled="rules.length >= 5"
+          @click="addField"
+        >
+          <v-icon left small>mdi-plus</v-icon>
+          Add rule
+        </v-btn>
+        <small class="grey--text d-block mt-1">
+          You can add up to 5 rules.
+        </small>
       </v-card-text>
+
+      <v-divider/>
+
+      <!-- acções -->
       <v-card-actions>
         <v-spacer/>
-        <v-btn text @click="cancel">Cancel</v-btn>
+        <v-btn text @click="$emit('update:show', false)">Cancel</v-btn>
         <v-btn
           color="primary"
           text
-          :disabled="!localTitle.trim()"
-          @click="add"
-        >
-          Add
-        </v-btn>
+          :disabled="!canSave"
+          @click="save"
+        >Save</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -36,40 +71,36 @@ import Vue from 'vue'
 export default Vue.extend({
   name: 'DiscussionRuleForm',
   props: {
-    show: {
-      type: Boolean,
-      default: false
-    },
-    ruleTitle: {
-      type: String,
-      default: ''
+    show:       { type: Boolean, default: false },
+    // opcional: título inicial único (para modo “editar” no futuro)
+    ruleTitle:  { type: String,  default: '' }
+  },
+  data () {
+    return {
+      rules: this.ruleTitle ? [this.ruleTitle] : ['']   // pelo menos 1 campo
     }
   },
-  data() {
-    return {
-      localShow: this.show,
-      localTitle: this.ruleTitle
+  computed: {
+    canSave (): boolean {
+      return (
+        this.rules.length > 0 &&
+        this.rules.every(r => r.trim().length > 0)
+      )
     }
   },
   watch: {
-    show(val: boolean) {
-      this.localShow = val
-    },
-    ruleTitle(val: string) {
-      this.localTitle = val
+    show (v:boolean) {
+      if (v && this.rules.length === 0) this.rules = ['']
     }
   },
   methods: {
-    cancel() {
-      // fecha o diálogo sem criar
+    addField ()   { if (this.rules.length < 5) this.rules.push('') },
+    remove (idx:number) { this.rules.splice(idx, 1) },
+    save () {
+      const titles = this.rules.map(r => r.trim()).filter(Boolean)
+      this.$emit('save', titles)
       this.$emit('update:show', false)
-      this.localTitle = this.ruleTitle   // opcional: reset
-    },
-    add() {
-      // emite o texto atual da regra
-      this.$emit('add', this.localTitle.trim())
-      this.$emit('update:show', false)
-      this.localTitle = ''
+      this.rules = ['']              // reset para próxima vez
     }
   }
 })

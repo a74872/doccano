@@ -4,7 +4,7 @@ from metrics.views import MemberLabelChoicesAPI
 from .views.member import MemberDetail, MemberList, MyRole
 from .views.project import CloneProject, ProjectDetail, ProjectList, PerspectiveListCreateView, PerspectiveDetailView, PerspectiveEditView
 from .views.tag import TagDetail, TagList
-from examples.views.discussion import DiscussionMessageCreateAPI, DiscussionListCreateAPI, DiscussionDetailAPI, RuleListCreateAPI, RuleDetailAPI, RuleVoteListCreateAPI
+from examples.views.discussion import DiscussionMessageCreateAPI, DiscussionListCreateAPI, DiscussionDetailAPI, RuleListCreateAPI, RuleDetailAPI, RuleVoteListCreateAPI, DiscussionThreadMessageAPI
 
 
 urlpatterns = [
@@ -22,8 +22,10 @@ urlpatterns = [
     path(route="projects/<int:project_id>/examples/<int:example_id>/discussion/messages/",view=DiscussionMessageCreateAPI.as_view(), name="discussion_messages"),
     path(route="projects/<int:project_id>/examples/<int:example_id>/discussion/",view=DiscussionListCreateAPI.as_view(), name="discussion_topics_list_create"),
     path(route="projects/<int:project_id>/examples/<int:example_id>/discussion/topics/<uuid:pk>/",view=DiscussionDetailAPI.as_view(), name="discussion_topics_detail"),
-    path(route="projects/<int:project_id>/examples/<int:example_id>/discussion/topics/<uuid:discussion_id>/rules/", view=RuleListCreateAPI.as_view(), name="rule_list_create"),
-    path(route="projects/<int:project_id>/examples/<int:example_id>/discussion/topics/rules/<uuid:pk>/", view=RuleDetailAPI.as_view(), name="rule_detail"),
-    path(route="projects/<int:project_id>/examples/<int:example_id>/discussion/topics/rules/<uuid:rule_id>/votes/", view=RuleVoteListCreateAPI.as_view(), name="rule_vote_list_create"),
     path(route="projects/<int:project_id>/perspective/<int:perspective_id>/edit", view=PerspectiveEditView.as_view(), name="perspective_edit"),
+    path(route="projects/<int:project_id>/discussion/examples/<int:example_id>/<uuid:discussion_id>/chat/", view=DiscussionThreadMessageAPI.as_view(), name="discussion_thread_messages"),
+    path(route="projects/<int:project_id>/discussion/examples/<int:example_id>/<uuid:discussion_id>/rules/<uuid:rule_id>/votes/", view=RuleVoteListCreateAPI.as_view(), name="rule_vote_list_create"),
+    path(route="projects/<int:project_id>/discussion/examples/<int:example_id>/<uuid:discussion_id>/rules/", view=RuleListCreateAPI.as_view(), name="rule_list_create"),
+    path(route="projects/<int:project_id>/discussion/examples/<int:example_id>/<uuid:discussion_id>/detail/", view=RuleDetailAPI.as_view(), name="rule_detail"),
+
 ]

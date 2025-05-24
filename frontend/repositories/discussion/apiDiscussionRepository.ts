@@ -34,15 +34,34 @@ export class APIDiscussionRepository {
   }
 
 
-  // bulk delete
-  async bulkDelete(projectId: string, ids: string[]): Promise<void> {
-    const url = `/projects/${projectId}/discussions/?ids=${ids.join(',')}`
+  // apiDiscussionRepository.ts
+  async remove (
+    projectId: string,
+    exampleId: number,
+    discussionId: string
+  ): Promise<void> {
+    const url = `/projects/${projectId}` + `/examples/${exampleId}` + `/discussion/topics/${discussionId}/`
+
     await this.request.delete(url)
   }
 
+  async patch(
+    projectId: string,
+    exampleId: number,
+    discussionId: string,
+    payload: object              // {archived:true}  ou  {is_resolved:true}
+  ): Promise<void> {
+    const url =
+      `/projects/${projectId}` +
+      `/examples/${exampleId}` +
+      `/discussion/topics/${discussionId}/`
+    await this.request.patch(url, payload)
+  }
+
+
   // bulk archive
   async archive(projectId: string, ids: string[]): Promise<void> {
-    const url = `/projects/${projectId}/discussions/archive/`
+    const url = `/projects/${projectId}` + `/examples/${exampleId}` + `/discussion/topics/${discussionId}/`
     await this.request.post(url, { ids })
   }
 }

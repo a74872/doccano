@@ -129,7 +129,7 @@
             last_name: this.last_name,
             username: this.username,
             is_superuser: this.isSuperuser,
-            is_staff: this.isSuperuser ? true : this.isStaff,
+            is_staff:     this.isSuperuser,
             email: this.email,
             password1: this.password1,
             password2: this.password2,
