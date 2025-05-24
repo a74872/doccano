@@ -28,6 +28,7 @@ import { apiPerspectiveRepository } from "@/repositories/perspective/apiPerspect
 import { APIDiscrepanciesRepository } from '@/repositories/discrepancies/apiDiscrepanciesRepository'
 import { APIDiscussionRepository } from '@/repositories/discussion/apiDiscussionRepository'
 import { APIRuleRepository } from '@/repositories/rule/apiRuleRepository'
+import { APIStatisticsRepository } from '@/repositories/statistics/apiStatisticsRepository'
 
 
 export interface Repositories {
@@ -83,6 +84,7 @@ export interface Repositories {
   // Discussions
   discussion: APIDiscussionRepository
   rule: APIRuleRepository
+  statistics: APIStatisticsRepository
 }
 
 declare module 'vue/types/vue' {
@@ -140,6 +142,7 @@ const repositories: Repositories = {
 
   discussion: new APIDiscussionRepository(),
   rule: new APIRuleRepository(),
+  statistics: new APIStatisticsRepository(),
 
   // Discrepancies
   discrepancies: new APIDiscrepanciesRepository()

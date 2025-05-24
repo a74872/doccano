@@ -149,7 +149,7 @@
               v-model="selectedMember"
               :items="members"
               item-text="username"
-              item-value="id"
+              item-value="username"
               label="Anotador"
               outlined
               dense
@@ -253,8 +253,7 @@
 <script lang="ts">
 import Vue from 'vue'
 import { Perspective } from '~/domain/models/perspective/perspective'
-import { Member } from '~/domain/models/member/member'
-import { StatisticsRepository } from '~/domain/repositories/statistics/statisticsRepositoryInterface'
+import { StatisticsRepository } from '~/repositories/statistics/apiStatisticsRepository'
 
 interface ReportData {
   items: Array<{
@@ -304,14 +303,14 @@ export default Vue.extend({
   data() {
     return {
       activeSection: null as 'annotations' | 'annotators' | null,
+      selectedReport : 'annotators',
       annotationReportTypes: [
         { text: 'Relatório de Desacordos', value: 'disagreements' },
         { text: 'Relatório de Perspetivas', value: 'perspectives' }
       ],
-      selectedReport: 'disagreements',
       selectedDataset: null as number | null,
       selectedPerspective: null as number | null,
-      selectedMember: null as number | null,
+      selectedMember: null as string | null,
       selectedDiscussion: null as number | null,
       loading: false,
       loadingDatasets: false,
@@ -326,7 +325,7 @@ export default Vue.extend({
       ],
       datasets: [] as Dataset[],
       perspectives: [] as Perspective[],
-      members: [] as Member[],
+      members: [] as { username:string }[],
       discussions: [] as Discussion[],
       disagreementHeaders: [
         { text: 'Documento', value: 'document' },
@@ -456,24 +455,17 @@ export default Vue.extend({
       }
     },
 
-    async loadMembers(projectId: number) {
+    async loadMembers (projectId: number) {
       this.loadingMembers = true
       try {
-        const response = await this.$repositories.metrics.fetchCategoryDistribution(projectId.toString(), {})
-        this.members = Object.keys(response).map(username => ({
-          id: username,
-          username,
-          email: '',
-          role: 'annotator',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }))
-      } catch (error) {
-        console.error('Erro ao carregar membros:', error)
+        const dist = await this.$repositories.metrics
+                            .fetchCategoryDistribution(projectId.toString(), {})
+        this.members = Object.keys(dist).map(username => ({ username }))
       } finally {
         this.loadingMembers = false
       }
     },
+
 
     async loadDiscussions(_projectId: number, _datasetId: number) {
       this.loadingDiscussions = true
@@ -510,6 +502,14 @@ export default Vue.extend({
       try {
         this.loading = true
         this.error = null
+        /* ─── LOG ─── */
+        console.log('[generateReport] reportType=', this.selectedReport)
+        console.log('[generateReport] filters =', {
+          dataset    : this.selectedDataset,
+          discussion : this.selectedDiscussion,
+          perspective: this.selectedPerspective,
+          member     : this.selectedMember
+        })
         const projectId = parseInt(this.$route.params.id)
         const statisticsRepository = this.$repositories.statistics as StatisticsRepository
 
@@ -532,7 +532,10 @@ export default Vue.extend({
               reportData = await statisticsRepository.generatePerspectiveReport(projectId, filters)
               break
             case 'annotators':
-              reportData = await statisticsRepository.generateAnnotatorReport(projectId, filters)
+              reportData = await this.$repositories.statistics.generateAnnotatorReport(
+                this.$route.params.id,          // projectId
+                { member: this.selectedMember! }  // já é string
+              )
               break
           }
         } catch (apiError: any) {
@@ -558,10 +561,11 @@ export default Vue.extend({
           this.reportData = null
           return
         }
-
+        console.log('[generateReport] result =', reportData)
         this.reportData = reportData
       } catch (error: any) {
         console.error('Error generating report:', error)
+        console.error('[generateReport] ERROR', err)
         this.error = error.response?.data?.detail || error.message || 'Erro ao gerar relatório'
         this.reportData = null
       } finally {
