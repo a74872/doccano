@@ -3,7 +3,7 @@
     <!-- Page title -->
     <v-row>
       <v-col cols="12">
-        <h1 class="text-h4 mb-4">Statistics</h1>
+        <h1 class="text-h4 mb-4"></h1>
       </v-col>
     </v-row>
 
@@ -139,11 +139,16 @@
       </div>
     </v-expand-transition>
 
-    <!-- ============================  ANNOTATORS SECTION  ============================ -->
-    <v-expand-transition>
-      <div v-if="activeSection === 'annotators'">
-        <!-- Filters -->
-        <v-row>
+<template>
+  <!-- =======================  ANNOTATORS SECTION  ======================= -->
+  <v-expand-transition>
+    <div v-if="activeSection === 'annotators'">
+      <!-- ---------- card único com título + botão-calendário -------- -->
+
+      <!-- ---------- select de membro + botões ----------------------- -->
+      <!-- ❶ LINHA dos filtros + botões  -->
+        <v-row class="mb-4" align="center">
+          <!-- SELECT ocupa 4 colunas em md+  -->
           <v-col cols="12" md="4">
             <v-select
               v-model="selectedMember"
@@ -154,49 +159,109 @@
               :loading="loadingMembers"
             />
           </v-col>
-        </v-row>
 
-        <!-- Action buttons -->
-        <v-row>
-          <v-col cols="12">
+          <!-- BOTÕES: col “auto” e alinhados à direita -->
+          <v-col
+            cols="12"
+            md="8"
+            class="d-flex justify-mid align-center mt-n7"
+          >
             <v-btn
               color="primary"
+              large
               class="mr-2"
               :loading="loading"
               :disabled="!canGenerateReport"
               @click="generateReport"
             >
-              Generate Report
+              Generate&nbsp;Report
             </v-btn>
 
             <v-btn
               color="secondary"
+              large
               :disabled="!reportData"
               @click="exportReport"
             >
-              Export Report
+              Export&nbsp;Report
             </v-btn>
           </v-col>
         </v-row>
 
-        <!-- Report table for annotators -->
-        <v-row v-if="reportData && selectedReport === 'annotators'">
-          <v-col cols="12">
+      <v-card>
+        <v-card-title>
+          {{ reportTitle }}
+          <v-spacer />
+
+          <!-- activator do menu de datas -->
+          <v-menu
+            v-model="dateMenu"
+            :close-on-content-click="false"
+            offset-y
+            transition="scale-transition"
+            max-width="320"
+          >
+            <template #activator="{ on, attrs }">
+              <!-- botão que abre o menu -->
+              <v-btn
+                v-bind="attrs"
+                v-on="on"
+                color="primary"
+                class="d-flex align-center px-3 py-2"
+                elevation="0"
+                outlined
+              >
+                <!-- título / legenda -->
+                <span class="mr-2 subtitle-2 font-weight-medium">
+                  Data filter
+                </span>
+
+                <!-- ícone do calendário -->
+                <v-icon small>{{ icons.calendar }}</v-icon>
+              </v-btn>
+            </template>
+
+            <!-- ---- pickers dentro do menu ---- -->
             <v-card>
-              <v-card-title>{{ reportTitle }}</v-card-title>
-              <v-card-text>
-                <v-data-table
-                  :headers="annotatorHeaders"
-                  :items="reportData.items"
-                  :loading="loading"
-                >
-                </v-data-table>
+              <v-card-text style="width:340px">
+                <div class="subtitle-2 mb-1">Start date</div>
+                <v-date-picker
+                  v-model="startDate"
+                  :max="endDate || undefined"
+                  label="Start date"
+                  scrollable
+                  class="mb-2"
+                />
+
+                <div class="subtitle-2 mb-1">End date</div>
+                <v-date-picker
+                  v-model="endDate"
+                  :min="startDate || undefined"
+                  label="End date"
+                  scrollable
+                />
               </v-card-text>
+              <v-card-actions class="justify-end pr-20" style="margin-right:10px">
+                <v-btn text  @click="clearDates">Clean </v-btn>
+                <v-btn color="primary" @click="dateMenu=false">OK </v-btn>
+              </v-card-actions>
             </v-card>
-          </v-col>
-        </v-row>
-      </div>
-    </v-expand-transition>
+          </v-menu>
+        </v-card-title>
+
+        <!-- ---------- tabela filtrada ------------------------------- -->
+        <v-card-text>
+          <v-data-table
+            :headers="annotatorHeaders"
+            :items="filteredItems"
+            :loading="loading"
+          />
+        </v-card-text>
+      </v-card>
+
+    </div>
+  </v-expand-transition>
+</template>
 
     <!-- ============================  ERROR ============================ -->
     <v-row v-if="error">
@@ -211,6 +276,7 @@
 
 <script lang="ts">
 import Vue from 'vue'
+import {mdiCalendarRange, } from '@mdi/js'
 import { Perspective } from '~/domain/models/perspective/perspective'
 import { StatisticsRepository } from '~/repositories/statistics/apiStatisticsRepository'
 
@@ -261,6 +327,10 @@ export default Vue.extend({
 
   data() {
     return {
+      icons: {calendar: mdiCalendarRange,},
+      dateMenu  : false,
+      startDate : null as string | null,
+      endDate   : null as string | null,
       activeSection: null as 'annotations' | 'annotators' | null,
       selectedReport : 'annotators',
       annotationReportTypes: [
@@ -359,7 +429,33 @@ export default Vue.extend({
         annotators: 'Annotators Report'
       }
       return map[this.selectedReport] || ''
+    },
+
+    /* label resumido no botão */
+    dateFilterLabel (): string {
+      if (!this.startDate && !this.endDate) return 'Filtrar por data'
+      if (this.startDate && this.endDate)   return `${this.startDate} → ${this.endDate}`
+      return this.startDate || this.endDate || ''
+    },
+
+    /* linhas aplicando o intervalo de datas */
+    filteredItems (): any[] {
+      if (!this.reportData) return []
+      const { startDate, endDate } = this
+      if (!startDate && !endDate) return this.reportData.items
+
+      const t0 = startDate ? new Date(startDate) : null
+      const t1 = endDate   ? new Date(endDate)   : null
+
+      return this.reportData.items.filter(row => {
+        if (!row.date) return false                // sem data -> fora
+        const ts = new Date(row.date)              // "YYYY-MM-DD HH:mm:ss"
+        if (t0 && ts < t0) return false
+        if (t1 && ts > new Date(t1.getTime()+86400000-1)) return false // inclui dia todo
+        return true
+      })
     }
+
   },
 
   async fetch() {
@@ -467,6 +563,7 @@ export default Vue.extend({
     },
 
     async generateReport () {
+      this.startDate = this.endDate = null
       this.loading = true
       this.error   = null
 
@@ -547,6 +644,10 @@ export default Vue.extend({
         console.error('Error loading labels:', error)
         this.error = 'Failed to load labels'
       }
+    },
+
+    clearDates () {
+      this.startDate = this.endDate = null
     }
   },
 
