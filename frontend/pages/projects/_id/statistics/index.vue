@@ -136,6 +136,21 @@
             </v-card>
           </v-col>
         </v-row>
+
+        <v-row v-if="reportData && selectedReport === 'annotationHistory'">
+          <v-col cols="12">
+            <v-card>
+              <v-card-title>{{ reportTitle }}</v-card-title>
+              <v-card-text>
+                <v-data-table
+                  :headers="annotationHistoryHeaders"
+                  :items="reportData.items"
+                  :loading="loading"
+                />
+              </v-card-text>
+            </v-card>
+          </v-col>
+        </v-row>
       </div>
     </v-expand-transition>
 
@@ -160,7 +175,7 @@
             />
           </v-col>
 
-          <!-- BOTÕES: col “auto” e alinhados à direita -->
+          <!-- BOTÕES: col "auto" e alinhados à direita -->
           <v-col
             cols="12"
             md="8"
@@ -335,7 +350,8 @@ export default Vue.extend({
       selectedReport : 'annotators',
       annotationReportTypes: [
         { text: 'Relatório de Desacordos', value: 'disagreements' },
-        { text: 'Relatório de Perspetivas', value: 'perspectives' }
+        { text: 'Relatório de Perspetivas', value: 'perspectives' },
+        { text: 'Histórico de Anotações', value: 'annotationHistory' }
       ],
       selectedDataset: null as number | null,
       selectedPerspective: null as number | null,
@@ -350,7 +366,8 @@ export default Vue.extend({
       reportTypes: [
         { text: 'Relatório de Desacordos', value: 'disagreements' },
         { text: 'Relatório de Perspetivas', value: 'perspectives' },
-        { text: 'Annotators Report', value: 'annotators' }
+        { text: 'Annotators Report', value: 'annotators' },
+        { text: 'Histórico de Anotações', value: 'annotationHistory' }
       ],
       datasets: [] as Dataset[],
       perspectives: [] as Perspective[],
@@ -385,13 +402,22 @@ export default Vue.extend({
       ],
       labels: [] as LabelItem[],
       projectId: 0,
-      error: null as string | null
+      error: null as string | null,
+      annotationHistoryHeaders: [
+        { text: 'Annotator', value: 'annotator' },
+        { text: 'Dataset Name', value: 'example' },
+        { text: 'Label', value: 'label' },
+        { text: 'Date', value: 'date' }
+      ],
     }
   },
 
   computed: {
     showDatasetFilter(): boolean {
-      return this.selectedReport === 'disagreements'
+      return (
+        this.selectedReport === 'disagreements' ||
+        this.selectedReport === 'annotationHistory'
+      )
     },
     showPerspectiveFilter(): boolean {
       return this.selectedReport === 'perspectives'
@@ -418,6 +444,8 @@ export default Vue.extend({
           return this.selectedPerspective !== null
         case 'annotators':
           return true
+        case 'annotationHistory':
+          return this.selectedDataset !== null
         default:
           return false
       }
@@ -426,7 +454,8 @@ export default Vue.extend({
       const map: Record<string, string> = {
         disagreements: 'Relatório de Desacordos',
         perspectives: 'Relatório de Perspetivas',
-        annotators: 'Annotators Report'
+        annotators: 'Annotators Report',
+        annotationHistory: 'Histórico de Anotações'
       }
       return map[this.selectedReport] || ''
     },
@@ -580,15 +609,20 @@ export default Vue.extend({
 
       try {
         if (this.selectedReport === 'annotators') {
-          // “ALL” → undefined → devolve todos os membros
+          // "ALL" → undefined → devolve todos os membros
           this.reportData = await statisticsRepository.generateAnnotatorReport(
             projectId.toString(),
             { member: filters.member }
           )
         } else if (this.selectedReport === 'disagreements') {
           this.reportData = await statisticsRepository.generateDisagreementReport(projectId, filters)
-        } else { /* perspectives */
+        } else if (this.selectedReport === 'perspectives') {
           this.reportData = await statisticsRepository.generatePerspectiveReport(projectId, filters)
+        } else { /* annotationHistory */
+          this.reportData = await statisticsRepository.generateAnnotationHistoryReport(
+            projectId.toString(),
+            this.selectedDataset
+          )
         }
 
         if (!this.reportData?.items?.length) {

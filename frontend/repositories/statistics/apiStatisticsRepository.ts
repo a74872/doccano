@@ -82,4 +82,59 @@ export class APIStatisticsRepository {
     }
     return { items: rows }
   }
+
+  async fetchAnnotationHistory(projectId: string, datasetId?: number): Promise<any[]> {
+    const params: any = { page_size: 1000 }
+    if (datasetId !== undefined) params.dataset = datasetId
+
+    // Buscar exemplos
+    const examples = await ApiService.get(
+      `/projects/${projectId}/examples`,
+      { params, headers: { Accept: 'application/json' } }
+    ).then(r => r.data.results ?? r.data);
+
+    // Buscar membros
+    const members = await ApiService.get(
+      `/projects/${projectId}/members`,
+      { params: { page_size: 1000 }, headers: { Accept: 'application/json' } }
+    ).then(r => r.data.results ?? r.data);
+    const userIdToName: Record<number, string> = Object.fromEntries(
+      members.map((m: any) => [m.id, m.username])
+    );
+
+    // Buscar labels
+    const labelTypes = await ApiService.get(
+      `/projects/${projectId}/category-types`,
+      { headers: { Accept: 'application/json' } }
+    ).then(r => r.data.results ?? r.data);
+    const labelIdToName: Record<number, string> = Object.fromEntries(
+      labelTypes.map((l: any) => [l.id, l.text || l.name])
+    );
+
+    const history: any[] = [];
+    for (const ex of examples) {
+      const labels = await ApiService.get(
+        `/projects/${projectId}/examples/${ex.id}/categories`,
+        { params: { ordering: '-created_at' }, headers: { Accept: 'application/json' } }
+      ).then(r => Array.isArray(r.data) ? r.data : r.data.results);
+
+      for (const label of labels) {
+        const annotatorName = userIdToName[label.user];
+        const labelName = labelIdToName[label.label];
+
+        history.push({
+          annotator: annotatorName,
+          example: ex.upload_name || ex.filename?.split('/').pop() || `#${ex.id}`,
+          label: labelName,
+          date: label.created_at ? label.created_at.replace('T', ' ').slice(0, 19) : '',
+        });
+      }
+    }
+    return history;
+  }
+
+  async generateAnnotationHistoryReport(projectId: string, datasetId?: number) {
+    const items = await this.fetchAnnotationHistory(projectId, datasetId);
+    return { items };
+  }
 }
