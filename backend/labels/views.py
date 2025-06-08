@@ -6,6 +6,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.renderers import JSONRenderer
 
 from .permissions import CanEditLabel
 from .serializers import (
@@ -33,6 +34,7 @@ class BaseListAPI(generics.ListCreateAPIView):
     label_class: Type[Label]
     pagination_class = None
     permission_classes = [IsAuthenticated & IsProjectMember]
+    renderer_classes = [JSONRenderer]
     swagger_schema = None
 
     @property
@@ -40,10 +42,22 @@ class BaseListAPI(generics.ListCreateAPIView):
         return get_object_or_404(Project, pk=self.kwargs["project_id"])
 
     def get_queryset(self):
-        queryset = self.label_class.objects.filter(example=self.kwargs["example_id"])
+        qs = self.label_class.objects.filter(example=self.kwargs["example_id"])
+
+        # ── filtros opcionais -------------------------------------------------
+        user_id = self.request.query_params.get("user")
+        username = self.request.query_params.get("username")
+
+        if user_id:  # ?user=123
+            return qs.filter(user_id=user_id)
+
+        if username:  # ?username=admin
+            return qs.filter(user__username=username)
+
+        # comportamento normal
         if not self.project.collaborative_annotation:
-            queryset = queryset.filter(user=self.request.user)
-        return queryset
+            qs = qs.filter(user=self.request.user)
+        return qs
 
     def create(self, request, *args, **kwargs):
         request.data["example"] = self.kwargs["example_id"]
@@ -64,6 +78,7 @@ class BaseListAPI(generics.ListCreateAPIView):
 
 class BaseDetailAPI(generics.RetrieveUpdateDestroyAPIView):
     lookup_url_kwarg = "annotation_id"
+    renderer_classes = [JSONRenderer]
     swagger_schema = None
 
     @property
@@ -80,6 +95,7 @@ class BaseDetailAPI(generics.RetrieveUpdateDestroyAPIView):
 
 class CategoryListAPI(BaseListAPI):
     label_class = Category
+    renderer_classes = [JSONRenderer]
     serializer_class = CategorySerializer
 
     def create(self, request, *args, **kwargs):

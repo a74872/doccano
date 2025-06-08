@@ -107,7 +107,7 @@
               :disabled="!reportData"
               @click="exportReport"
             >
-              Exportar
+              Export Report
             </v-btn>
           </v-col>
         </v-row>
@@ -147,10 +147,8 @@
           <v-col cols="12" md="4">
             <v-select
               v-model="selectedMember"
-              :items="members"
-              item-text="username"
-              item-value="username"
-              label="Anotador"
+              :items="memberItems"
+              label="Annotator"
               outlined
               dense
               :loading="loadingMembers"
@@ -168,7 +166,7 @@
               :disabled="!canGenerateReport"
               @click="generateReport"
             >
-              Gerar Relatório
+              Generate Report
             </v-btn>
 
             <v-btn
@@ -176,7 +174,7 @@
               :disabled="!reportData"
               @click="exportReport"
             >
-              Exportar
+              Export Report
             </v-btn>
           </v-col>
         </v-row>
@@ -192,45 +190,6 @@
                   :items="reportData.items"
                   :loading="loading"
                 >
-                  <template v-slot:[`item.datasets`]="{ item }">
-                    <v-expansion-panels>
-                      <v-expansion-panel
-                        v-for="dataset in item.datasets"
-                        :key="dataset.document"
-                      >
-                        <v-expansion-panel-header>
-                          Dataset #{{ dataset.document }}
-                        </v-expansion-panel-header>
-                        <v-expansion-panel-content>
-                          <v-simple-table dense>
-                            <thead>
-                              <tr>
-                                <th>Label</th>
-                                <th class="text-right">Count</th>
-                                <th class="text-right">%</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <tr v-for="category in dataset.categories" :key="category.name">
-                                <td>
-                                  <v-chip
-                                    :color="getLabelColor(category.name)"
-                                    :text-color="getLabelTextColor(category.name)"
-                                    small
-                                    class="me-1"
-                                  >
-                                    {{ category.name }}
-                                  </v-chip>
-                                </td>
-                                <td class="text-right">{{ category.count }}</td>
-                                <td class="text-right">{{ category.percentage }}%</td>
-                              </tr>
-                            </tbody>
-                          </v-simple-table>
-                        </v-expansion-panel-content>
-                      </v-expansion-panel>
-                    </v-expansion-panels>
-                  </template>
                 </v-data-table>
               </v-card-text>
             </v-card>
@@ -310,7 +269,7 @@ export default Vue.extend({
       ],
       selectedDataset: null as number | null,
       selectedPerspective: null as number | null,
-      selectedMember: null as string | null,
+      selectedMember : 'ALL' as string,
       selectedDiscussion: null as number | null,
       loading: false,
       loadingDatasets: false,
@@ -321,7 +280,7 @@ export default Vue.extend({
       reportTypes: [
         { text: 'Relatório de Desacordos', value: 'disagreements' },
         { text: 'Relatório de Perspetivas', value: 'perspectives' },
-        { text: 'Relatório de Anotadores', value: 'annotators' }
+        { text: 'Annotators Report', value: 'annotators' }
       ],
       datasets: [] as Dataset[],
       perspectives: [] as Perspective[],
@@ -329,23 +288,24 @@ export default Vue.extend({
       discussions: [] as Discussion[],
       disagreementHeaders: [
         { text: 'Documento', value: 'document' },
-        { text: 'Anotador 1', value: 'annotator1' },
-        { text: 'Anotador 2', value: 'annotator2' },
+        { text: 'Annotator 1', value: 'annotator1' },
+        { text: 'Annotator 2', value: 'annotator2' },
         { text: 'Taxa de Desacordo', value: 'disagreementRate' },
         { text: 'Categorias em Desacordo', value: 'disagreementCategories' }
       ],
       perspectiveHeaders: [
         { text: 'Documento', value: 'document' },
-        { text: 'Anotador', value: 'annotator' },
+        { text: 'Annotator', value: 'annotator' },
         { text: 'Categoria', value: 'category' },
         { text: 'Frequência', value: 'frequency' },
         { text: 'Percentagem', value: 'percentage' }
       ],
       annotatorHeaders: [
-        { text: 'Anotador', value: 'annotator' },
-        { text: 'Total de Anotações', value: 'total' },
-        { text: 'Categorias Usadas', value: 'categories' },
-        { text: 'Taxa de Desacordo', value: 'disagreementRate' }
+        { text: 'Annotator', value: 'annotator' },
+        { text: 'Dataset Name', value: 'example' },
+        { text: 'Last Modification', value: 'date'      },
+        { text: 'Total Labels', value: 'total' },
+        { text: 'Labels Used', value: 'categories' }
       ],
       headers: [
         { text: 'Annotator', value: 'annotator' },
@@ -372,6 +332,14 @@ export default Vue.extend({
     showDiscussionFilter(): boolean {
       return this.selectedReport === 'disagreements' && this.selectedDataset !== null
     },
+
+    memberItems (): { text:string, value:string }[] {
+      return [
+        { text:'All', value:'ALL' },
+        ...this.members.map(m => ({ text:m.username, value:m.username }))
+      ]
+    },
+
     canGenerateReport(): boolean {
       switch (this.selectedReport) {
         case 'disagreements':
@@ -379,7 +347,7 @@ export default Vue.extend({
         case 'perspectives':
           return this.selectedPerspective !== null
         case 'annotators':
-          return this.selectedMember !== null
+          return true
         default:
           return false
       }
@@ -388,7 +356,7 @@ export default Vue.extend({
       const map: Record<string, string> = {
         disagreements: 'Relatório de Desacordos',
         perspectives: 'Relatório de Perspetivas',
-        annotators: 'Relatório de Anotadores'
+        annotators: 'Annotators Report'
       }
       return map[this.selectedReport] || ''
     }
@@ -493,85 +461,59 @@ export default Vue.extend({
       // Resetar seleções quando o tipo de relatório muda
       this.selectedDataset = null
       this.selectedPerspective = null
-      this.selectedMember = null
+      this.selectedMember = 'ALL'
       this.selectedDiscussion = null
       this.reportData = null
     },
 
-    async generateReport() {
+    async generateReport () {
+      this.loading = true
+      this.error   = null
+
+      const projectId = Number(this.$route.params.id)
+      const statisticsRepository = this.$repositories.statistics as StatisticsRepository
+
+      /* ------------ filtros visíveis em todo o método ------------ */
+      const filters = {
+        dataset    : this.selectedDataset    || undefined,
+        discussion : this.selectedDiscussion || undefined,
+        perspective: this.selectedPerspective|| undefined,
+        member     : this.selectedMember === 'ALL' ? undefined : this.selectedMember
+      }
+
       try {
-        this.loading = true
-        this.error = null
-        /* ─── LOG ─── */
-        console.log('[generateReport] reportType=', this.selectedReport)
-        console.log('[generateReport] filters =', {
-          dataset    : this.selectedDataset,
-          discussion : this.selectedDiscussion,
-          perspective: this.selectedPerspective,
-          member     : this.selectedMember
-        })
-        const projectId = parseInt(this.$route.params.id)
-        const statisticsRepository = this.$repositories.statistics as StatisticsRepository
-
-        const filters = {
-          dataset: this.selectedDataset || undefined,
-          discussion: this.selectedDiscussion || undefined,
-          perspective: this.selectedPerspective || undefined,
-          member: this.selectedMember || undefined
+        if (this.selectedReport === 'annotators') {
+          // “ALL” → undefined → devolve todos os membros
+          this.reportData = await statisticsRepository.generateAnnotatorReport(
+            projectId.toString(),
+            { member: filters.member }
+          )
+        } else if (this.selectedReport === 'disagreements') {
+          this.reportData = await statisticsRepository.generateDisagreementReport(projectId, filters)
+        } else { /* perspectives */
+          this.reportData = await statisticsRepository.generatePerspectiveReport(projectId, filters)
         }
 
-        console.log('Generating report with filters:', filters)
-
-        let reportData
-        try {
-          switch (this.selectedReport) {
-            case 'disagreements':
-              reportData = await statisticsRepository.generateDisagreementReport(projectId, filters)
-              break
-            case 'perspectives':
-              reportData = await statisticsRepository.generatePerspectiveReport(projectId, filters)
-              break
-            case 'annotators':
-              reportData = await this.$repositories.statistics.generateAnnotatorReport(
-                this.$route.params.id,          // projectId
-                { member: this.selectedMember! }  // já é string
-              )
-              break
-          }
-        } catch (apiError: any) {
-          console.error('API Error details:', {
-            status: apiError.response?.status,
-            data: apiError.response?.data,
-            headers: apiError.response?.headers
-          })
-
-          if (apiError.response?.status === 500) {
-            this.error = 'O servidor encontrou um erro ao processar sua solicitação. Por favor, tente novamente mais tarde ou entre em contato com o administrador.'
-          } else if (apiError.response?.status === 404) {
-            this.error = 'Os dados solicitados não foram encontrados. Verifique se o membro selecionado possui anotações.'
-          } else {
-            this.error = apiError.response?.data?.detail || apiError.message || 'Erro ao gerar relatório'
-          }
-          this.reportData = null
-          return
-        }
-
-        if (!reportData || !reportData.items || reportData.items.length === 0) {
+        if (!this.reportData?.items?.length) {
           this.error = 'Nenhum dado encontrado para os filtros selecionados.'
           this.reportData = null
-          return
         }
-        console.log('[generateReport] result =', reportData)
-        this.reportData = reportData
+
       } catch (error: any) {
-        console.error('Error generating report:', error)
-        console.error('[generateReport] ERROR', err)
-        this.error = error.response?.data?.detail || error.message || 'Erro ao gerar relatório'
+        console.error('API-error:', error)
+        if (error.response?.status === 500) {
+          this.error = 'O servidor encontrou um erro. Tente mais tarde.'
+        } else if (error.response?.status === 404) {
+          this.error = 'Dados não encontrados para estes filtros.'
+        } else {
+          this.error = error.response?.data?.detail || error.message || 'Erro ao gerar relatório'
+        }
         this.reportData = null
       } finally {
         this.loading = false
       }
     },
+
 
     async exportReport() {
       try {

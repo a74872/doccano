@@ -102,7 +102,7 @@ export default Vue.extend({
   data () {
     return {
       isLoading: false,
-      examples : [] as any[],             // enriquecido com chart
+      examples : [] as any[],
       labels   : [] as CategoryType[]
     }
   },

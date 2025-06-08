@@ -8,6 +8,7 @@ from label_types.models import CategoryType, RelationType, SpanType
 class CategorySerializer(serializers.ModelSerializer):
     label = serializers.PrimaryKeyRelatedField(queryset=CategoryType.objects.all())
     example = serializers.PrimaryKeyRelatedField(queryset=Example.objects.all())
+    username = serializers.CharField(source='user.username', read_only=True)
 
     class Meta:
         model = Category
@@ -15,6 +16,7 @@ class CategorySerializer(serializers.ModelSerializer):
             "id",
             "prob",
             "user",
+            "username",
             "example",
             "created_at",
             "updated_at",
