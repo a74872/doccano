@@ -209,7 +209,7 @@
                 color="primary"
                 class="d-flex align-center px-3 py-2"
                 elevation="0"
-                outlined
+
               >
                 <!-- título / legenda -->
                 <span class="mr-2 subtitle-2 font-weight-medium">
