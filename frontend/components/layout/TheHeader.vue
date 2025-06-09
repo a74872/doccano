@@ -2,10 +2,10 @@
   <v-app-bar app clipped-left>
     <slot name="leftDrawerIcon" />
     <nuxt-link v-if="!isAuthenticated" to="/" style="line-height: 0">
-      <img src="~/assets/icon.png" height="48" />
+      <img src="~/assets/speed.png" height="100" />
     </nuxt-link>
     <v-toolbar-title v-if="!isAuthenticated" class="ml-2 d-none d-sm-flex">
-      doccano
+      Doccano Grupo 16
     </v-toolbar-title>
     <v-btn
       v-if="isAuthenticated && isIndividualProject"

@@ -1,5 +1,5 @@
 export default {
-  mainTitle: 'Welcome to Doccano!',
+  mainTitle: 'Stay Tuned! 🚗💨',
   getStarted: 'Get Started',
   startAnnotation: 'Start Annotation',
   featuresTitle: 'The best features',
