@@ -154,14 +154,13 @@
       </div>
     </v-expand-transition>
 
-<template>
-  <!-- =======================  ANNOTATORS SECTION  ======================= -->
-  <v-expand-transition>
-    <div v-if="activeSection === 'annotators'">
-      <!-- ---------- card único com título + botão-calendário -------- -->
+    <!-- =======================  ANNOTATORS SECTION  ======================= -->
+    <v-expand-transition>
+      <div v-if="activeSection === 'annotators'">
+        <!-- ---------- card único com título + botão-calendário -------- -->
 
-      <!-- ---------- select de membro + botões ----------------------- -->
-      <!-- ❶ LINHA dos filtros + botões  -->
+        <!-- ---------- select de membro + botões ----------------------- -->
+        <!-- ❶ LINHA dos filtros + botões  -->
         <v-row class="mb-4" align="center">
           <!-- SELECT ocupa 4 colunas em md+  -->
           <v-col cols="12" md="4">
@@ -203,80 +202,77 @@
           </v-col>
         </v-row>
 
-      <v-card>
-        <v-card-title>
-          {{ reportTitle }}
-          <v-spacer />
+        <v-card>
+          <v-card-title>
+            {{ reportTitle }}
+            <v-spacer />
 
-          <!-- activator do menu de datas -->
-          <v-menu
-            v-model="dateMenu"
-            :close-on-content-click="false"
-            offset-y
-            transition="scale-transition"
-            max-width="320"
-          >
-            <template #activator="{ on, attrs }">
-              <!-- botão que abre o menu -->
-              <v-btn
-                v-bind="attrs"
-                v-on="on"
-                color="primary"
-                class="d-flex align-center px-3 py-2"
-                elevation="0"
+            <!-- activator do menu de datas -->
+            <v-menu
+              v-model="dateMenu"
+              :close-on-content-click="false"
+              offset-y
+              transition="scale-transition"
+              max-width="320"
+            >
+              <template #activator="{ on, attrs }">
+                <!-- botão que abre o menu -->
+                <v-btn
+                  v-bind="attrs"
+                  v-on="on"
+                  color="primary"
+                  class="d-flex align-center px-3 py-2"
+                  elevation="0"
+                >
+                  <!-- título / legenda -->
+                  <span class="mr-2 subtitle-2 font-weight-medium">
+                    Data filter
+                  </span>
 
-              >
-                <!-- título / legenda -->
-                <span class="mr-2 subtitle-2 font-weight-medium">
-                  Data filter
-                </span>
+                  <!-- ícone do calendário -->
+                  <v-icon small>{{ icons.calendar }}</v-icon>
+                </v-btn>
+              </template>
 
-                <!-- ícone do calendário -->
-                <v-icon small>{{ icons.calendar }}</v-icon>
-              </v-btn>
-            </template>
+              <!-- ---- pickers dentro do menu ---- -->
+              <v-card>
+                <v-card-text style="width:340px">
+                  <div class="subtitle-2 mb-1">Start date</div>
+                  <v-date-picker
+                    v-model="startDate"
+                    :max="endDate || undefined"
+                    label="Start date"
+                    scrollable
+                    class="mb-2"
+                  />
 
-            <!-- ---- pickers dentro do menu ---- -->
-            <v-card>
-              <v-card-text style="width:340px">
-                <div class="subtitle-2 mb-1">Start date</div>
-                <v-date-picker
-                  v-model="startDate"
-                  :max="endDate || undefined"
-                  label="Start date"
-                  scrollable
-                  class="mb-2"
-                />
+                  <div class="subtitle-2 mb-1">End date</div>
+                  <v-date-picker
+                    v-model="endDate"
+                    :min="startDate || undefined"
+                    label="End date"
+                    scrollable
+                  />
+                </v-card-text>
+                <v-card-actions class="justify-end pr-20" style="margin-right:10px">
+                  <v-btn text  @click="clearDates">Clean </v-btn>
+                  <v-btn color="primary" @click="dateMenu=false">OK </v-btn>
+                </v-card-actions>
+              </v-card>
+            </v-menu>
+          </v-card-title>
 
-                <div class="subtitle-2 mb-1">End date</div>
-                <v-date-picker
-                  v-model="endDate"
-                  :min="startDate || undefined"
-                  label="End date"
-                  scrollable
-                />
-              </v-card-text>
-              <v-card-actions class="justify-end pr-20" style="margin-right:10px">
-                <v-btn text  @click="clearDates">Clean </v-btn>
-                <v-btn color="primary" @click="dateMenu=false">OK </v-btn>
-              </v-card-actions>
-            </v-card>
-          </v-menu>
-        </v-card-title>
-
-        <!-- ---------- tabela filtrada ------------------------------- -->
-        <v-card-text>
-          <v-data-table
-            :headers="annotatorHeaders"
-            :items="filteredItems"
-            :loading="loading"
-          />
-        </v-card-text>
-      </v-card>
-
-    </div>
-  </v-expand-transition>
-</template>
+          <!-- ---------- tabela filtrada ------------------------------- -->
+          <v-card-text>
+            <v-data-table
+              :headers="annotatorHeaders"
+              :items="filteredItems"
+              :loading="loading"
+            />
+          </v-card-text>
+        </v-card>
+      </div>
+    </v-expand-transition>
 
     <!-- ============================  ERROR ============================ -->
     <v-row v-if="error">
@@ -290,8 +286,11 @@
 </template>
 
 <script lang="ts">
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
+
 import Vue from 'vue'
-import {mdiCalendarRange, } from '@mdi/js'
+import { mdiCalendarRange } from '@mdi/js'
 import { Perspective } from '~/domain/models/perspective/perspective'
 import { StatisticsRepository } from '~/repositories/statistics/apiStatisticsRepository'
 
@@ -645,17 +644,28 @@ export default Vue.extend({
       }
     },
 
+    exportReport() {
+      if (!this.reportData || !this.reportData.items) return;
 
-    async exportReport() {
-      try {
-        const statisticsRepository = this.$repositories.statistics as StatisticsRepository
-        await statisticsRepository.exportReport(
-          this.reportData,
-          'csv'
-        )
-      } catch (error) {
-        console.error('Erro ao exportar relatório:', error)
-      }
+      // 1. Prepara os dados para exportar
+      const data = this.reportData.items.map(item => ({
+        Annotator: item.annotator,
+        'Dataset Name': item.example,
+        Label: item.label,
+        Date: item.date,
+      }));
+
+      // 2. Cria a worksheet e o workbook
+      const worksheet = XLSX.utils.json_to_sheet(data);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Histórico de Anotações');
+
+      // 3. Gera o ficheiro Excel
+      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+
+      // 4. Faz download
+      const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
+      saveAs(blob, 'historico_anotacoes.xlsx');
     },
 
     getLabelColor(labelName: string): string {
