@@ -94,13 +94,7 @@ export class APIStatisticsRepository {
     ).then(r => r.data.results ?? r.data);
 
     // Buscar membros
-    const members = await ApiService.get(
-      `/projects/${projectId}/members`,
-      { params: { page_size: 1000 }, headers: { Accept: 'application/json' } }
-    ).then(r => r.data.results ?? r.data);
-    const userIdToName: Record<number, string> = Object.fromEntries(
-      members.map((m: any) => [m.id, m.username])
-    );
+   
 
     // Buscar labels
     const labelTypes = await ApiService.get(
@@ -119,7 +113,7 @@ export class APIStatisticsRepository {
       ).then(r => Array.isArray(r.data) ? r.data : r.data.results);
 
       for (const label of labels) {
-        const annotatorName = userIdToName[label.user];
+        const annotatorName = label.username;
         const labelName = labelIdToName[label.label];
 
         history.push({
