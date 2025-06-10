@@ -1,51 +1,74 @@
 <template>
-  <v-card>
-    <v-card-title v-if="isStaff">
-      <v-btn class="text-capitalize" color="primary" @click.stop="dialogCreate = true">
-        {{ $t('generic.create') }}
-      </v-btn>
-      <v-dialog v-model="dialogCreate">
-        <form-create @cancel="dialogCreate = false" @save="onSave" />
-      </v-dialog>
+  <v-app id="inspire">
+  <!-- o fundo está aplicado nesta div -->
+    <v-main class="bg-login">
+    <v-card>
+      <v-card-title v-if="isStaff">
+        <v-btn class="text-capitalize" color="primary" @click.stop="dialogCreate = true">
+          {{ $t('generic.create') }}
+        </v-btn>
+        <v-dialog v-model="dialogCreate" max-width="900">
+          <form-create
+          @cancel="dialogCreate = false"
+          @save="onSave"
+          @created="onCreateSuccess"
+          @failed="onCreateError"/>
+        </v-dialog>
 
-      <v-btn
-        class="text-capitalize ms-2"
-        :disabled="!canEdit"
-        outlined
-        @click.stop="dialogEdit = true"
-      >
-        {{ $t('generic.edit') }}
-      </v-btn>
-      <v-dialog v-model="dialogEdit">
-        <form-edit
-          :user="selected[0]"
-          @cancel="dialogEdit = false"
-          @save="onEditSave"
-        />
-      </v-dialog>
+        <v-btn
+          class="text-capitalize ms-2"
+          :disabled="!canEdit"
+          outlined
+          @click.stop="dialogEdit = true"
+        >
+          {{ $t('generic.edit') }}
+        </v-btn>
+        <v-dialog v-model="dialogEdit">
+          <form-edit
+            :user="selected[0]"
+            @cancel="dialogEdit = false"
+            @save="onEditSave"
+          />
+        </v-dialog>
 
-      <v-btn
-        class="text-capitalize ms-2"
-        :disabled="!canDelete"
-        outlined
-        @click.stop="dialogDelete = true"
-      >
-        {{ $t('generic.delete') }}
-      </v-btn>
-      <v-dialog v-model="dialogDelete">
-        <form-delete :selected="selected" @cancel="dialogDelete = false" @remove="remove" />
-      </v-dialog>
-    </v-card-title>
+        <v-btn
+          class="text-capitalize ms-2"
+          :disabled="!canDelete"
+          outlined
+          @click.stop="dialogDelete = true"
+        >
+          {{ $t('generic.delete') }}
+        </v-btn>
+        <v-dialog v-model="dialogDelete">
+          <form-delete :selected="selected" @cancel="dialogDelete = false" @remove="remove" />
+        </v-dialog>
+      </v-card-title>
 
-    <users-list
-      v-model="selected"
-      :items="users.items"
-      :is-loading="isLoading"
-      :total="users.count"
-      @update:query="updateQuery"
-      @search="onSearch"
+      <users-list
+        v-model="selected"
+        :items="users.items"
+        :is-loading="isLoading"
+        :total="users.count"
+        @update:query="updateQuery"
+        @search="onSearch"
     />
-  </v-card>
+    </v-card>
+    <!-- ───────────── SNACKBAR GLOBAL ───────────── -->
+    <v-snackbar
+      v-model="snackbar.visible"
+      :color="snackbar.color"
+      top mid
+      timeout="4000"
+    >
+      {{ snackbar.text }}
+      <template #action="{ attrs }">
+        <v-btn text v-bind="attrs" @click="snackbar.visible = false">
+          Close
+        </v-btn>
+      </template>
+    </v-snackbar>
+   </v-main>
+  </v-app>
 </template>
 
 <script lang="ts">
@@ -77,7 +100,12 @@ export default Vue.extend({
       dialogEdit: false,
       users: new Page<User>(0, null, null, []),
       selected: [] as User[],
-      isLoading: false
+      isLoading: false,
+      snackbar: {
+        visible: false,
+        text   : '',
+        color  : 'success'   // success | error
+      }
     }
   },
 
@@ -102,6 +130,21 @@ export default Vue.extend({
   },
 
   methods: {
+    onCreateSuccess() {
+      this.dialogCreate = false
+      this.fetchUsers()
+      this.showSnack('New user created successfully', 'success')
+    },
+    onCreateError(msg:string) {
+      this.showSnack(msg, 'error')
+    },
+
+    showSnack(text:string, color:'success'|'error') {
+      this.snackbar.text   = text
+      this.snackbar.color  = color
+      this.snackbar.visible = true
+    },
+
     async fetchUsers() {
       this.isLoading = true
       try {
@@ -153,4 +196,9 @@ export default Vue.extend({
   }
 })
 </script>
-
+<style scoped>
+.bg-login {
+  background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url(~@/assets/galaxy.jpg) center / cover no-repeat fixed;
+  min-height: 100vh;
+}
+</style>
