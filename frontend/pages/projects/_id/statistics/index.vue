@@ -50,7 +50,7 @@
         <v-row>
           <v-col cols="12" md="4">
             <v-select
-              v-if="showDatasetFilter"
+              v-if="showDatasetFilter && selectedReport !== 'annotationHistory'"
               v-model="selectedDataset"
               :items="datasets"
               item-text="name"
@@ -59,6 +59,17 @@
               outlined
               dense
               :loading="loadingDatasets"
+            />
+
+            <v-select
+              v-else-if="selectedReport === 'annotationHistory' && examples.length > 0"
+              v-model="selectedExample"
+              :items="examples"
+              item-text="name"
+              item-value="name"
+              label="Dataset Name"
+              outlined
+              dense
             />
 
             <v-select
@@ -292,7 +303,7 @@ import { saveAs } from 'file-saver';
 import Vue from 'vue'
 import { mdiCalendarRange } from '@mdi/js'
 import { Perspective } from '~/domain/models/perspective/perspective'
-import { StatisticsRepository } from '~/repositories/statistics/apiStatisticsRepository'
+import { APIStatisticsRepository } from '~/repositories/statistics/apiStatisticsRepository'
 
 interface ReportData {
   items: Array<{
@@ -352,10 +363,11 @@ export default Vue.extend({
         { text: 'Relatório de Perspetivas', value: 'perspectives' },
         { text: 'Histórico de Anotações', value: 'annotationHistory' }
       ],
-      selectedDataset: null as number | null,
+      selectedDataset: null as string | null,
       selectedPerspective: null as number | null,
       selectedMember : 'ALL' as string,
       selectedDiscussion: null as number | null,
+      selectedExample: null as string | null,
       loading: false,
       loadingDatasets: false,
       loadingPerspectives: false,
@@ -408,6 +420,7 @@ export default Vue.extend({
         { text: 'Label', value: 'label' },
         { text: 'Date', value: 'date' }
       ],
+      examples: [] as { name: string }[],
     }
   },
 
@@ -444,7 +457,7 @@ export default Vue.extend({
         case 'annotators':
           return true
         case 'annotationHistory':
-          return this.selectedDataset !== null
+          return this.selectedExample !== null
         default:
           return false
       }
@@ -469,17 +482,19 @@ export default Vue.extend({
     /* linhas aplicando o intervalo de datas */
     filteredItems (): any[] {
       if (!this.reportData) return []
+      let items = this.reportData.items
+      if (this.selectedReport === 'annotationHistory' && this.selectedExample) {
+        items = items.filter((row: any) => row.example === this.selectedExample)
+      }
       const { startDate, endDate } = this
-      if (!startDate && !endDate) return this.reportData.items
-
+      if (!startDate && !endDate) return items
       const t0 = startDate ? new Date(startDate) : null
       const t1 = endDate   ? new Date(endDate)   : null
-
-      return this.reportData.items.filter(row => {
-        if (!row.date) return false                // sem data -> fora
-        const ts = new Date(row.date)              // "YYYY-MM-DD HH:mm:ss"
+      return items.filter(row => {
+        if (!row.date) return false
+        const ts = new Date(row.date)
         if (t0 && ts < t0) return false
-        if (t1 && ts > new Date(t1.getTime()+86400000-1)) return false // inclui dia todo
+        if (t1 && ts > new Date(t1.getTime()+86400000-1)) return false
         return true
       })
     }
@@ -510,25 +525,17 @@ export default Vue.extend({
       await Promise.all([
         this.loadDatasets(projectId),
         this.loadPerspectives(projectId),
-        this.loadMembers(projectId)
+        this.loadMembers(projectId),
+        this.loadExamples(projectId)
       ])
     },
 
-    async loadDatasets(_projectId: number) {
+    async loadDatasets(projectId: number) {
       this.loadingDatasets = true
       try {
-        // TODO: Implementar chamada à API para obter datasets
-        const response = await new Promise<{ results: Dataset[] }>(resolve => {
-          setTimeout(() => {
-            resolve({
-              results: [
-                { id: 1, name: 'Dataset 1' },
-                { id: 2, name: 'Dataset 2' }
-              ]
-            })
-          }, 1000)
-        })
-        this.datasets = response.results
+        // Buscar datasets reais do projeto
+        const datasets = await this.$repositories.catalog.list(projectId.toString())
+        this.datasets = datasets.map((d: any) => ({ id: d.taskId, name: d.displayName || d.display_name || d.name }))
       } catch (error) {
         console.error('Erro ao carregar datasets:', error)
       } finally {
@@ -558,6 +565,17 @@ export default Vue.extend({
       }
     },
 
+    async loadExamples(projectId: number) {
+      try {
+        const response = await this.$repositories.example.list(projectId.toString(), {});
+        const items = response.items || [];
+        const uniqueExamples = Array.from(new Set(items.map((ex: any) => ex.upload_name || ex.filename?.split('/').pop() || `#${ex.id}`)));
+        this.examples = uniqueExamples.map((name: string) => ({ name }));
+      } catch (error) {
+        console.error('Erro ao carregar exemplos:', error);
+        this.examples = [];
+      }
+    },
 
     async loadDiscussions(_projectId: number, _datasetId: number) {
       this.loadingDiscussions = true
@@ -587,6 +605,7 @@ export default Vue.extend({
       this.selectedPerspective = null
       this.selectedMember = 'ALL'
       this.selectedDiscussion = null
+      this.selectedExample = null
       this.reportData = null
     },
 
@@ -596,14 +615,15 @@ export default Vue.extend({
       this.error   = null
 
       const projectId = Number(this.$route.params.id)
-      const statisticsRepository = this.$repositories.statistics as StatisticsRepository
+      const statisticsRepository = this.$repositories.statistics as APIStatisticsRepository
 
       /* ------------ filtros visíveis em todo o método ------------ */
       const filters = {
         dataset    : this.selectedDataset    || undefined,
         discussion : this.selectedDiscussion || undefined,
         perspective: this.selectedPerspective|| undefined,
-        member     : this.selectedMember === 'ALL' ? undefined : this.selectedMember
+        member     : this.selectedMember === 'ALL' ? undefined : this.selectedMember,
+        example    : this.selectedExample    || undefined
       }
 
       try {
@@ -620,7 +640,7 @@ export default Vue.extend({
         } else { /* annotationHistory */
           this.reportData = await statisticsRepository.generateAnnotationHistoryReport(
             projectId.toString(),
-            this.selectedDataset
+            filters.example
           )
         }
 

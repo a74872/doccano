@@ -83,18 +83,23 @@ export class APIStatisticsRepository {
     return { items: rows }
   }
 
-  async fetchAnnotationHistory(projectId: string, datasetId?: number): Promise<any[]> {
+  async fetchAnnotationHistory(projectId: string, exampleName?: string): Promise<any[]> {
     const params: any = { page_size: 1000 }
-    if (datasetId !== undefined) params.dataset = datasetId
-
     // Buscar exemplos
     const examples = await ApiService.get(
       `/projects/${projectId}/examples`,
       { params, headers: { Accept: 'application/json' } }
     ).then(r => r.data.results ?? r.data);
 
-    // Buscar membros
-   
+    // Buscar datasets para mapear id → nome
+    const catalogs = await ApiService.get(
+      `/projects/${projectId}/catalog`,
+      { headers: { Accept: 'application/json' } }
+    ).then(r => r.data);
+    const datasetIdToName: Record<string, string> = {};
+    for (const d of catalogs) {
+      datasetIdToName[d.task_id || d.taskId] = d.display_name || d.displayName || d.name;
+    }
 
     // Buscar labels
     const labelTypes = await ApiService.get(
@@ -107,6 +112,8 @@ export class APIStatisticsRepository {
 
     const history: any[] = [];
     for (const ex of examples) {
+      const exName = ex.upload_name || ex.filename?.split('/').pop() || `#${ex.id}`;
+      if (exampleName && exName !== exampleName) continue;
       const labels = await ApiService.get(
         `/projects/${projectId}/examples/${ex.id}/categories`,
         { params: { ordering: '-created_at' }, headers: { Accept: 'application/json' } }
@@ -115,10 +122,12 @@ export class APIStatisticsRepository {
       for (const label of labels) {
         const annotatorName = label.username;
         const labelName = labelIdToName[label.label];
+        const datasetName = datasetIdToName[ex.dataset] || '';
 
         history.push({
           annotator: annotatorName,
-          example: ex.upload_name || ex.filename?.split('/').pop() || `#${ex.id}`,
+          example: exName,
+          dataset: datasetName,
           label: labelName,
           date: label.created_at ? label.created_at.replace('T', ' ').slice(0, 19) : '',
         });
@@ -127,8 +136,8 @@ export class APIStatisticsRepository {
     return history;
   }
 
-  async generateAnnotationHistoryReport(projectId: string, datasetId?: number) {
-    const items = await this.fetchAnnotationHistory(projectId, datasetId);
+  async generateAnnotationHistoryReport(projectId: string, exampleName?: string) {
+    const items = await this.fetchAnnotationHistory(projectId, exampleName);
     return { items };
   }
 }
