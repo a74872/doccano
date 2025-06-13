@@ -33,6 +33,7 @@
     "codemirror": "^5.*",
     "consola": "^2.15.3",
     "dayjs": "^1.11.13",
+    "file-saver": "^2.0.5",
     "filepond": "^4.28.2",
     "filepond-plugin-file-validate-type": "^1.2.6",
     "fs-extra": "10.0.0",
@@ -58,6 +59,7 @@
     "vuetify": "^2.*",
     "wavesurfer.js": "^5.1.0",
     "webpack": "^4.46.0",
+    "xlsx": "^0.18.5",
     "yarn": "^1.22.22"
   },
   "devDependencies": {
