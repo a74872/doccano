@@ -7,6 +7,21 @@
       <v-progress-circular v-if="isLoading" indeterminate size="20"/>
     </v-card-title>
 
+
+  <v-alert
+      v-if="showError"
+      type="error"
+      border="left"
+      colored-border
+      elevation="2"
+      class="mb-4"
+      dismissible
+      @input="showError = false"
+    >
+      {{ errorText }}
+  </v-alert>
+
+
     <v-container fluid>
       <v-alert
         v-if="!examples.length && !isLoading"
@@ -103,64 +118,78 @@ export default Vue.extend({
     return {
       isLoading: false,
       examples : [] as any[],
-      labels   : [] as CategoryType[]
+      labels   : [] as CategoryType[],
+      showError: false,
+      errorMsgKey: 'errors.serverUnavailable'
     }
   },
 
   computed: {
+    errorText (): string {
+      return this.$t(this.errorMsgKey) as string
+    },
+
     ...mapGetters('projects', ['project']),
     projectId (): string { return this.$route.params.id }
   },
 
   async fetch () {
     this.isLoading = true
+    this.showError = false
 
-    /* 1) exemplos + meta-labels */
-    const list   = await this.$services.example.list(this.projectId, {})
-    this.labels  = await this.$services.categoryType.list(this.projectId)
+    try {
+        /* 1) exemplos + meta-labels */
+        const list   = await this.$services.example.list(this.projectId, {})
+        this.labels  = await this.$services.categoryType.list(this.projectId)
 
-    /* 2) enriquecer cada example com userLabels + dados p/ gráfico */
-    const enr = await Promise.all(
-      list.items.map(async (ex: ExampleDTO) => {
+        /* 2) enriquecer cada example com userLabels + dados p/ gráfico */
+        const enr = await Promise.all(
+          list.items.map(async (ex: ExampleDTO) => {
 
-        /* distribuição por membro */
-        const dist = await this.$repositories.metrics
-          .fetchCategoryDistribution(this.projectId, { example: ex.id })
+            /* distribuição por membro */
+            const dist = await this.$repositories.metrics
+              .fetchCategoryDistribution(this.projectId, { example: ex.id })
 
-        // ---- tabela membro → chips ---------------------------------
-        const rows = Object.entries(dist).map(([username, lblCounts]: any) => {
-          const lbls = Object.entries(lblCounts)
-            .filter(([, c]) => c > 0)
-            .map(([text]) => {
-              const meta = this.labels.find(l => l.text === text) || {}
-              return { text, color: meta.backgroundColor || '#E0E0E0' }
+            // ---- tabela membro → chips ---------------------------------
+            const rows = Object.entries(dist).map(([username, lblCounts]: any) => {
+              const lbls = Object.entries(lblCounts)
+                .filter(([, c]) => c > 0)
+                .map(([text]) => {
+                  const meta = this.labels.find(l => l.text === text) || {}
+                  return { text, color: meta.backgroundColor || '#E0E0E0' }
+                })
+              return { username, labels: lbls }
             })
-          return { username, labels: lbls }
-        })
 
-        // ---- dados para grafico  -----------------------------------
-        const total = Object.entries(dist).reduce((acc: any, [, l]) => {
-          for (const [t, c] of Object.entries(l)) acc[t] = (acc[t] || 0) + (c as number)
-          return acc
-        }, {})
+            // ---- dados para grafico  -----------------------------------
+            const total = Object.entries(dist).reduce((acc: any, [, l]) => {
+              for (const [t, c] of Object.entries(l)) acc[t] = (acc[t] || 0) + (c as number)
+              return acc
+            }, {})
 
-        const chartLabels = Object.keys(total)
-        const chartCounts = chartLabels.map(l => total[l])
-        const chartColors = chartLabels.map(l => {
-          const meta = this.labels.find(x => x.text === l) || {}
-          return meta.backgroundColor || '#90CAF9'
-        })
+            const chartLabels = Object.keys(total)
+            const chartCounts = chartLabels.map(l => total[l])
+            const chartColors = chartLabels.map(l => {
+              const meta = this.labels.find(x => x.text === l) || {}
+              return meta.backgroundColor || '#90CAF9'
+            })
 
-        return {
-          ...ex,
-          userLabels: rows,
-          chart: { labels: chartLabels, counts: chartCounts, colors: chartColors }
-        }
-      })
-    )
-
-    this.examples  = enr
-    this.isLoading = false
+            return {
+              ...ex,
+              userLabels: rows,
+              chart: { labels: chartLabels, counts: chartCounts, colors: chartColors }
+            }
+          })
+        )
+        this.examples  = enr
+    } catch (err: any) {
+      // debug opcional
+      console.error('Annotations Comparator error ▶', err)
+      this.errorMsgKey = 'errors.serverUnavailable'
+      this.showError = true
+    } finally {
+      this.isLoading = false
+    }
   }
 })
 </script>

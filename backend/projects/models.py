@@ -9,7 +9,8 @@ from django.core.validators import MinLengthValidator
 from django.db import models
 from django.db.models import Manager
 from polymorphic.models import PolymorphicModel
-
+from django.db.models import UniqueConstraint
+from django.db.models.functions import Lower
 from roles.models import Role
 
 
@@ -232,12 +233,22 @@ class Perspective(models.Model):
     project     = models.ForeignKey(Project, on_delete=models.CASCADE,
                                     related_name="perspectives")
     title       = models.CharField(max_length=100, default="Untitled perspective")
+    description = models.CharField(max_length=1000, default="No details yet")
     created_by  = models.ForeignKey(User, on_delete=models.SET_NULL,
                                     null=True, related_name="created_perspectives")
     created_at  = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.title} ({self.project.name})"
+
+    class Meta:
+        # título único POR PROJECTO, ignorando maiúsc/minúsc
+        constraints = [
+            UniqueConstraint(
+                Lower("title"), "project",
+                name="uniq_persp_title_per_project_i",
+            )
+        ]
 
 
 class LabelPerspective(models.Model):

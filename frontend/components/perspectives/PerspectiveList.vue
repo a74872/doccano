@@ -181,6 +181,7 @@ export default {
       error: null,
       headers: [
         { text: 'Title', value: 'title' },
+        { text: 'Description', value: 'description' },
         { text: 'Labels', value: 'labelsCol', sortable: false },
         { text: 'Created By', value: 'created_by' },
         { text: 'Created At', value: 'created_at_fmt' }
