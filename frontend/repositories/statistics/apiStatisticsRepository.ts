@@ -82,4 +82,65 @@ export class APIStatisticsRepository {
     }
     return { items: rows }
   }
+
+  async fetchAnnotationHistory(projectId: string, exampleName?: string, filters?: { member?: string }): Promise<any[]> {
+    const params: any = { page_size: 1000 }
+    // Buscar exemplos
+    const examples = await ApiService.get(
+      `/projects/${projectId}/examples`,
+      { params, headers: { Accept: 'application/json' } }
+    ).then(r => r.data.results ?? r.data);
+
+    // Buscar datasets para mapear id → nome
+    const catalogs = await ApiService.get(
+      `/projects/${projectId}/catalog`,
+      { headers: { Accept: 'application/json' } }
+    ).then(r => r.data);
+    const datasetIdToName: Record<string, string> = {};
+    for (const d of catalogs) {
+      datasetIdToName[d.task_id || d.taskId] = d.display_name || d.displayName || d.name;
+    }
+
+    // Buscar labels
+    const labelTypes = await ApiService.get(
+      `/projects/${projectId}/category-types`,
+      { headers: { Accept: 'application/json' } }
+    ).then(r => r.data.results ?? r.data);
+    const labelIdToName: Record<number, string> = Object.fromEntries(
+      labelTypes.map((l: any) => [l.id, l.text || l.name])
+    );
+
+    const history: any[] = [];
+    for (const ex of examples) {
+      const exName = ex.upload_name || ex.filename?.split('/').pop() || `#${ex.id}`;
+      if (exampleName && exName !== exampleName) continue;
+      const labels = await ApiService.get(
+        `/projects/${projectId}/examples/${ex.id}/categories`,
+        { params: { ordering: '-created_at' }, headers: { Accept: 'application/json' } }
+      ).then(r => Array.isArray(r.data) ? r.data : r.data.results);
+
+      for (const label of labels) {
+        const annotatorName = label.username;
+        // Skip if member filter is set and doesn't match
+        if (filters?.member && annotatorName !== filters.member) continue;
+        
+        const labelName = labelIdToName[label.label];
+        const datasetName = datasetIdToName[ex.dataset] || '';
+
+        history.push({
+          annotator: annotatorName,
+          example: exName,
+          dataset: datasetName,
+          label: labelName,
+          date: label.created_at ? label.created_at.replace('T', ' ').slice(0, 19) : '',
+        });
+      }
+    }
+    return history;
+  }
+
+  async generateAnnotationHistoryReport(projectId: string, exampleName?: string, filters?: { member?: string }) {
+    const items = await this.fetchAnnotationHistory(projectId, exampleName, filters);
+    return { items };
+  }
 }
