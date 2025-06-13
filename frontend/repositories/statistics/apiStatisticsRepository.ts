@@ -83,7 +83,7 @@ export class APIStatisticsRepository {
     return { items: rows }
   }
 
-  async fetchAnnotationHistory(projectId: string, exampleName?: string): Promise<any[]> {
+  async fetchAnnotationHistory(projectId: string, exampleName?: string, filters?: { member?: string }): Promise<any[]> {
     const params: any = { page_size: 1000 }
     // Buscar exemplos
     const examples = await ApiService.get(
@@ -121,6 +121,9 @@ export class APIStatisticsRepository {
 
       for (const label of labels) {
         const annotatorName = label.username;
+        // Skip if member filter is set and doesn't match
+        if (filters?.member && annotatorName !== filters.member) continue;
+        
         const labelName = labelIdToName[label.label];
         const datasetName = datasetIdToName[ex.dataset] || '';
 
@@ -136,8 +139,8 @@ export class APIStatisticsRepository {
     return history;
   }
 
-  async generateAnnotationHistoryReport(projectId: string, exampleName?: string) {
-    const items = await this.fetchAnnotationHistory(projectId, exampleName);
+  async generateAnnotationHistoryReport(projectId: string, exampleName?: string, filters?: { member?: string }) {
+    const items = await this.fetchAnnotationHistory(projectId, exampleName, filters);
     return { items };
   }
 }

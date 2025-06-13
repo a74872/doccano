@@ -73,6 +73,26 @@
             />
 
             <v-select
+              v-if="selectedReport === 'annotationHistory'"
+              v-model="selectedMember"
+              :items="memberItems"
+              label="Annotator"
+              outlined
+              dense
+              :loading="loadingMembers"
+            />
+
+            <v-select
+              v-if="selectedReport === 'annotationHistory'"
+              v-model="selectedLabel"
+              :items="labelItems"
+              label="Label"
+              outlined
+              dense
+              :loading="loadingLabels"
+            />
+
+            <v-select
               v-else-if="showPerspectiveFilter"
               v-model="selectedPerspective"
               :items="perspectives"
@@ -151,11 +171,65 @@
         <v-row v-if="reportData && selectedReport === 'annotationHistory'">
           <v-col cols="12">
             <v-card>
-              <v-card-title>{{ reportTitle }}</v-card-title>
+              <v-card-title>
+                {{ reportTitle }}
+                <v-spacer />
+
+                <!-- Menu de datas para histórico de anotações -->
+                <v-menu
+                  v-if="selectedReport === 'annotationHistory'"
+                  v-model="dateMenu"
+                  :close-on-content-click="false"
+                  offset-y
+                  transition="scale-transition"
+                  max-width="320"
+                >
+                  <template #activator="{ on, attrs }">
+                    <v-btn
+                      v-bind="attrs"
+                      v-on="on"
+                      color="primary"
+                      class="d-flex align-center px-3 py-2"
+                      elevation="0"
+                    >
+                      <span class="mr-2 subtitle-2 font-weight-medium">
+                        {{ dateFilterLabel }}
+                      </span>
+                      <v-icon small>{{ icons.calendar }}</v-icon>
+                    </v-btn>
+                  </template>
+
+                  <v-card>
+                    <v-card-text style="width:340px">
+                      <div class="subtitle-2 mb-1">Start date</div>
+                      <v-date-picker
+                        v-model="startDate"
+                        :max="endDate || undefined"
+                        label="Start date"
+                        scrollable
+                        class="mb-2"
+                      />
+
+                      <div class="subtitle-2 mb-1">End date</div>
+                      <v-date-picker
+                        v-model="endDate"
+                        :min="startDate || undefined"
+                        label="End date"
+                        scrollable
+                      />
+                    </v-card-text>
+                    <v-card-actions class="justify-end pr-20" style="margin-right:10px">
+                      <v-btn text @click="clearDates">Clean </v-btn>
+                      <v-btn color="primary" @click="dateMenu=false">OK </v-btn>
+                    </v-card-actions>
+                  </v-card>
+                </v-menu>
+              </v-card-title>
+
               <v-card-text>
                 <v-data-table
                   :headers="annotationHistoryHeaders"
-                  :items="reportData.items"
+                  :items="filteredItems"
                   :loading="loading"
                 />
               </v-card-text>
@@ -358,6 +432,8 @@ export default Vue.extend({
       endDate   : null as string | null,
       activeSection: null as 'annotations' | 'annotators' | null,
       selectedReport : 'annotators',
+      selectedLabel: null as string | null,
+      loadingLabels: false,
       annotationReportTypes: [
         { text: 'Relatório de Desacordos', value: 'disagreements' },
         { text: 'Relatório de Perspetivas', value: 'perspectives' },
@@ -448,6 +524,20 @@ export default Vue.extend({
       ]
     },
 
+    labelItems(): { text: string; value: string }[] {
+      return [
+        { text: 'All', value: 'ALL' },
+        ...this.labels.map(l => ({ text: l.text, value: l.text }))
+      ]
+    },
+
+    exampleItems(): { text: string; value: string }[] {
+      return [
+        { text: 'All', value: 'ALL' },
+        ...this.examples.map(ex => ({ text: ex.name, value: ex.name }))
+      ]
+    },
+
     canGenerateReport(): boolean {
       switch (this.selectedReport) {
         case 'disagreements':
@@ -457,7 +547,10 @@ export default Vue.extend({
         case 'annotators':
           return true
         case 'annotationHistory':
-          return this.selectedExample !== null
+          // Permite gerar o relatório se pelo menos um filtro estiver selecionado
+          return this.selectedExample !== null || 
+                 this.selectedMember !== 'ALL' || 
+                 this.selectedLabel !== null
         default:
           return false
       }
@@ -483,9 +576,23 @@ export default Vue.extend({
     filteredItems (): any[] {
       if (!this.reportData) return []
       let items = this.reportData.items
+
+      // Aplica filtro de exemplo se selecionado
       if (this.selectedReport === 'annotationHistory' && this.selectedExample) {
         items = items.filter((row: any) => row.example === this.selectedExample)
       }
+
+      // Aplica filtro de anotador se selecionado
+      if (this.selectedReport === 'annotationHistory' && this.selectedMember !== 'ALL') {
+        items = items.filter((row: any) => row.annotator === this.selectedMember)
+      }
+
+      // Aplica filtro de label se selecionado
+      if (this.selectedReport === 'annotationHistory' && this.selectedLabel && this.selectedLabel !== 'ALL') {
+        items = items.filter((row: any) => row.label === this.selectedLabel)
+      }
+
+      // Aplica filtro de datas
       const { startDate, endDate } = this
       if (!startDate && !endDate) return items
       const t0 = startDate ? new Date(startDate) : null
@@ -526,7 +633,8 @@ export default Vue.extend({
         this.loadDatasets(projectId),
         this.loadPerspectives(projectId),
         this.loadMembers(projectId),
-        this.loadExamples(projectId)
+        this.loadExamples(projectId),
+        this.loadLabels()
       ])
     },
 
@@ -606,6 +714,7 @@ export default Vue.extend({
       this.selectedMember = 'ALL'
       this.selectedDiscussion = null
       this.selectedExample = null
+      this.selectedLabel = null
       this.reportData = null
     },
 
@@ -640,7 +749,8 @@ export default Vue.extend({
         } else { /* annotationHistory */
           this.reportData = await statisticsRepository.generateAnnotationHistoryReport(
             projectId.toString(),
-            filters.example
+            filters.example,
+            { member: filters.member }
           )
         }
 
