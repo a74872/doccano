@@ -17,6 +17,7 @@ from .models import (
     Perspective,
     LabelPerspective,
     ChoiceOption,
+    PerspectiveResponse,
 )
 
 
@@ -160,7 +161,7 @@ class LabelSerializer(serializers.ModelSerializer):
 
     class Meta:
         model  = LabelPerspective
-        fields = ["name", "data_type", "int_min", "int_max", "options"]
+        fields = ["id", "name", "data_type", "int_min", "int_max", "options"]
 
     def create(self, validated_data):
         opts = validated_data.pop("options", [])
@@ -198,3 +199,78 @@ class PerspectiveSerializer(serializers.ModelSerializer):
             LabelSerializer().create({**lbl, "perspective": instance})
 
         return instance
+
+
+class PerspectiveResponseSerializer(serializers.ModelSerializer):
+    user = serializers.SlugRelatedField(slug_field='username', read_only=True)
+    perspective = serializers.PrimaryKeyRelatedField(queryset=Perspective.objects.all())
+    choice_value = serializers.SlugRelatedField(
+        slug_field='value',
+        queryset=ChoiceOption.objects.all(),
+        required=False,
+        allow_null=True
+    )
+
+    class Meta:
+        model = PerspectiveResponse
+        fields = [
+            'id',
+            'perspective',
+            'user',
+            'string_value',
+            'int_value',
+            'choice_value',
+            'created_at'
+        ]
+        read_only_fields = ('id', 'user', 'created_at')
+
+    def to_internal_value(self, data):
+        # Permitir múltiplas respostas no mesmo payload
+        if isinstance(data.get('answers'), list):
+            return data
+        return super().to_internal_value(data)
+
+    def validate(self, data):
+        # Se answers está presente, validação será feita no create
+        if isinstance(data.get('answers'), list):
+            return data
+        # Validação antiga para compatibilidade
+        return super().validate(data)
+
+    def create(self, validated_data):
+        request = self.context['request']
+        user = request.user
+        # Se answers está presente, criar múltiplas respostas
+        if isinstance(validated_data.get('answers'), list):
+            perspective = validated_data['perspective']
+            # Garantir que perspective é um objeto
+            from projects.models import Perspective
+            if isinstance(perspective, int):
+                perspective = Perspective.objects.get(id=perspective)
+            answers = validated_data['answers']
+            responses = []
+            for ans in answers:
+                label_id = ans.get('label_id')
+                label = perspective.labels.filter(id=label_id).first()
+                if not label:
+                    raise serializers.ValidationError(f"Label com id {label_id} não encontrada.")
+                payload = {
+                    'perspective': perspective,
+                    'user': user
+                }
+                if label.data_type == LabelPerspective.DataType.STRING:
+                    payload['string_value'] = ans.get('string_value')
+                elif label.data_type == LabelPerspective.DataType.INT:
+                    payload['int_value'] = ans.get('int_value')
+                elif label.data_type == LabelPerspective.DataType.CHOICE:
+                    choice_val = ans.get('choice_value')
+                    choice = label.options.filter(value=choice_val).first()
+                    if not choice:
+                        raise serializers.ValidationError(f"Opção '{choice_val}' não encontrada para label {label.name}.")
+                    payload['choice_value'] = choice
+                response = PerspectiveResponse.objects.create(**payload)
+                responses.append(response)
+            return responses
+        # Caso antigo: criar uma resposta
+        validated_data['user'] = user
+        return super().create(validated_data)

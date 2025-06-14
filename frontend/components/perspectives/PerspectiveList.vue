@@ -14,6 +14,19 @@
         Create new Perspective
       </v-btn>
 
+      <!-- Give Answers -->
+      <v-btn
+        color="success"
+        class="ml-4 custom-btn"
+        min-width="180"
+        height="40"
+        :disabled="selected.length !== 1"
+        @click="openAnswerDialog"
+      >
+        <v-icon left class="mr-2">mdi-comment-text</v-icon>
+        Give Answers
+      </v-btn>
+
       <!-- Delete -->
       <v-btn
         color="error"
@@ -73,15 +86,36 @@
         </v-toolbar>
       </template>
 
-      <!-- custom cell for labels -->
-      <template v-slot:[`item.labelsCol`]="{ item }">
+      <!-- custom cell for title with response status -->
+      <template #[`item.title`]="{ item }">
+        <div class="d-flex align-center">
+          {{ item.title }}
+          <v-tooltip v-if="item.hasResponse">
+            <template #activator="{ on, attrs }">
+              <v-icon
+                small
+                color="success"
+                class="ml-2"
+                v-bind="attrs"
+                v-on="on"
+              >
+                mdi-check-circle
+              </v-icon>
+            </template>
+            <span>You have already answered this perspective</span>
+          </v-tooltip>
+        </div>
+      </template>
+
+      <!-- Slot para renderizar as chips das labels -->
+      <template #[`item.labelsCustom`]="{ item }">
         <div class="d-flex flex-wrap">
           <v-chip
-            v-for="lbl in item.labels"
+            v-for="lbl in item.labelsCustom"
             :key="lbl.id"
+            :color="chipColor(lbl.data_type)"
             small
             class="ma-1 white--text"
-            :color="chipColor(lbl.data_type)"
           >
             {{ lbl.name }}
           </v-chip>
@@ -139,7 +173,7 @@
             <span class="detail-label">Created at:</span>
             <span class="detail-value">{{ formatDate(selectedPerspective.created_at) }}</span>
           </div>
-          <div class="detail-item" v-for="lbl in selectedPerspective.labels" :key="lbl.id">
+          <div v-for="lbl in selectedPerspective.labels" :key="lbl.id" class="detail-item">
             <span class="detail-label">{{ lbl.name }} ({{ lbl.data_type }})</span>
             <span class="detail-value">
               <template v-if="lbl.data_type==='int'">
@@ -165,6 +199,89 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- answer dialog -->
+    <v-dialog v-model="answerDialog" max-width="800">
+      <v-card>
+        <v-card-title class="headline primary white--text">
+          <v-icon left color="white">mdi-comment-text</v-icon>
+          Answer Perspective
+        </v-card-title>
+
+        <v-card-text v-if="selectedPerspective" class="pt-4">
+          <v-alert
+            v-if="error"
+            type="error"
+            dense
+            border="left"
+            colored-border
+            class="mb-4"
+          >
+            {{ error }}
+          </v-alert>
+
+          <v-form ref="answerForm" v-model="answerFormValid">
+            <div v-for="(label, index) in selectedPerspective.labels" :key="index" class="mb-6">
+              <v-card outlined class="pa-4">
+                <div class="subtitle-1 font-weight-bold mb-2">{{ label.name }}</div>
+                
+                <!-- String input -->
+                <v-text-field
+                  v-if="label.data_type === 'string'"
+                  v-model="answers[label.id].string_value"
+                  label="Your answer"
+                  :rules="[rules.required]"
+                  outlined
+                  dense
+                />
+
+                <!-- Integer input -->
+                <v-text-field
+                  v-else-if="label.data_type === 'int'"
+                  v-model.number="answers[label.id].int_value"
+                  type="number"
+                  :label="`Enter a number between ${label.int_min} and ${label.int_max}`"
+                  :rules="[
+                    rules.required,
+                    v => v >= label.int_min || `Minimum value is ${label.int_min}`,
+                    v => v <= label.int_max || `Maximum value is ${label.int_max}`
+                  ]"
+                  outlined
+                  dense
+                />
+
+                <!-- Choice input -->
+                <v-radio-group
+                  v-else-if="label.data_type === 'choice'"
+                  v-model="answers[label.id].choice_value"
+                  :rules="[rules.required]"
+                >
+                  <v-radio
+                    v-for="option in label.options"
+                    :key="option.value"
+                    :label="option.value"
+                    :value="option.value"
+                  />
+                </v-radio-group>
+              </v-card>
+            </div>
+          </v-form>
+        </v-card-text>
+
+        <v-card-actions>
+          <v-spacer />
+          <v-btn text @click="answerDialog = false">Cancel</v-btn>
+          <v-btn
+            color="primary"
+            :loading="submitting"
+            :disabled="!answerFormValid"
+            @click="submitAnswers"
+          >
+            Submit Answers
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -177,19 +294,27 @@ export default {
       selected: [],
       confirmDialog: false,
       detailsDialog: false,
+      answerDialog: false,
       selectedPerspective: null,
       error: null,
+      submitting: false,
+      answerFormValid: false,
+      answers: {},
       headers: [
         { text: 'Title', value: 'title' },
-        { text: 'Labels', value: 'labelsCol', sortable: false },
+        { text: 'Labels', value: 'labelsCustom', sortable: false },
         { text: 'Created By', value: 'created_by' },
         { text: 'Created At', value: 'created_at_fmt' }
-      ]
+      ],
+      rules: {
+        required: v => !!v || 'This field is required'
+      }
     }
   },
   async mounted() {
     this.projectId = this.$route.params.id
     await this.fetchPerspectives()
+    await this.checkResponses()
   },
   methods: {
     openEditDialog () {
@@ -217,7 +342,7 @@ export default {
         const items = Array.isArray(response.results) ? response.results : response
         this.perspectives = items.map(p => ({
           ...p,
-          labelsCol: p.labels, // for slot column
+          labelsCustom: p.labels, // novo campo para renderização customizada
           created_at_fmt: this.formatDate(p.created_at)
         }))
       } catch (e) {
@@ -252,6 +377,96 @@ export default {
     },
     formatDate(date) {
       return date ? new Date(date).toLocaleString('pt-PT') : '—'
+    },
+    async checkResponses() {
+      try {
+        for (const perspective of this.perspectives) {
+          try {
+            await this.$repositories.perspective.getMyResponse(
+              this.projectId,
+              perspective.id
+            )
+            perspective.hasResponse = true
+          } catch (e) {
+            perspective.hasResponse = false
+          }
+        }
+      } catch (e) {
+        console.error('Error checking responses:', e)
+      }
+    },
+    async openAnswerDialog() {
+      if (this.selected.length !== 1) return
+      try {
+        const id = this.selected[0].id
+        const perspective = this.perspectives.find(p => p.id === id)
+        
+        // Check if user has already responded
+        try {
+          await this.$repositories.perspective.getMyResponse(
+            this.projectId,
+            id
+          )
+          this.$toast.error('You have already answered this perspective')
+          return
+        } catch (e) {
+          // No response found, continue
+        }
+
+        this.selectedPerspective = perspective
+        this.answers = {}
+        this.selectedPerspective.labels.forEach(label => {
+          this.answers[label.id] = {
+            string_value: null,
+            int_value: null,
+            choice_value: null
+          }
+        })
+        this.answerDialog = true
+      } catch (e) {
+        console.error(e)
+        this.error = 'Unable to load perspective details.'
+      }
+    },
+    async submitAnswers() {
+      if (!this.$refs.answerForm.validate()) return
+      this.submitting = true
+      this.error = null
+      try {
+        // Log para depuração
+        console.log('selectedPerspective.labels:', this.selectedPerspective.labels)
+        // Montar o payload para múltiplas respostas, garantindo que cada resposta tem label_id
+        const answers = this.selectedPerspective.labels.map(label => {
+          const answer = this.answers[label.id]
+          const obj = { label_id: label.id }
+          if (label.data_type === 'string') {
+            obj.string_value = answer.string_value
+          } else if (label.data_type === 'int') {
+            obj.int_value = answer.int_value
+          } else if (label.data_type === 'choice') {
+            obj.choice_value = answer.choice_value
+          }
+          return obj
+        })
+        console.log('answers payload:', answers)
+        const payload = {
+          perspective: this.selectedPerspective.id,
+          answers
+        }
+        console.log('payload final:', payload)
+        await this.$repositories.perspective.createResponse(
+          this.projectId,
+          this.selectedPerspective.id,
+          payload
+        )
+        this.answerDialog = false
+        this.$toast.success('Answers submitted successfully')
+      } catch (e) {
+        console.error(e)
+        this.error = 'Failed to submit answers. Please try again.'
+      } finally {
+        this.submitting = false
+      }
     }
   }
 }

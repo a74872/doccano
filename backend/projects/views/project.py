@@ -13,6 +13,8 @@ from projects.serializers import ProjectPolymorphicSerializer
 
 from projects.models import Perspective
 from projects.serializers import PerspectiveSerializer
+from projects.models import PerspectiveResponse
+from projects.serializers import PerspectiveResponseSerializer
 
 
 class ProjectList(generics.ListCreateAPIView):
@@ -138,10 +140,56 @@ class PerspectiveDetailView(RetrieveDestroyAPIView):
     lookup_url_kwarg = "perspective_id"
 
 class PerspectiveEditView(UpdateAPIView):
-
     queryset = Perspective.objects.all()
     serializer_class = PerspectiveSerializer
     permission_classes = [IsAuthenticated & IsProjectAdmin]
     lookup_url_kwarg = "perspective_id"
     http_method_names = ["put", "patch"]
+
+
+class PerspectiveResponseCreateView(generics.CreateAPIView):
+    """
+    View para criar uma resposta para uma perspectiva.
+    Um usuário só pode responder uma vez a cada perspectiva.
+    """
+    serializer_class = PerspectiveResponseSerializer
+    permission_classes = [IsAuthenticated]
+    queryset = PerspectiveResponse.objects.all()
+
+    def create(self, request, *args, **kwargs):
+        # Se answers está presente, processa múltiplas respostas
+        if isinstance(request.data.get('answers'), list):
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            responses = serializer.save()
+            return Response({'detail': 'Respostas criadas com sucesso.'}, status=status.HTTP_201_CREATED)
+        # Caso antigo: processa uma resposta só
+        return super().create(request, *args, **kwargs)
+
+
+class PerspectiveResponseListView(generics.ListAPIView):
+    """
+    View para listar todas as respostas de uma perspectiva.
+    Apenas administradores do projeto podem ver todas as respostas.
+    """
+    serializer_class = PerspectiveResponseSerializer
+    permission_classes = [IsAuthenticated & IsProjectAdmin]
+    queryset = PerspectiveResponse.objects.all()
+
+    def get_queryset(self):
+        perspective_id = self.kwargs.get('perspective_id')
+        return PerspectiveResponse.objects.filter(perspective_id=perspective_id)
+
+
+class UserPerspectiveResponseView(generics.ListAPIView):
+    serializer_class = PerspectiveResponseSerializer
+    permission_classes = [IsAuthenticated]
+    queryset = PerspectiveResponse.objects.all()
+
+    def get_queryset(self):
+        perspective_id = self.kwargs.get('perspective_id')
+        return PerspectiveResponse.objects.filter(
+            perspective_id=perspective_id,
+            user=self.request.user
+        )
 

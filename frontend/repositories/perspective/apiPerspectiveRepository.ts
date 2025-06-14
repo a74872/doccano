@@ -1,5 +1,5 @@
 import axios from "axios";
-import { Perspective } from "@/domain/models/perspective/perspective"; // Adjust the import as needed
+import { Perspective, CreatePerspectiveDTO } from "@/domain/models/perspective/perspective"; // Adjust the import as needed
 
 export const apiPerspectiveRepository = {
   async getPerspectives(projectId: number): Promise<Perspective[]> {
@@ -34,4 +34,25 @@ export const apiPerspectiveRepository = {
     await axios.put(`/v1/projects/${projectId}/perspective/${perspectiveId}/edit`,payload);
   },
 
+  async createResponse(projectId: number, perspectiveId: number, payload: any) {
+    const { data } = await axios.post(
+      `/v1/projects/${projectId}/perspective/${perspectiveId}/respond`,
+      payload
+    );
+    return data;
+  },
+
+  async getMyResponse(projectId: number, perspectiveId: number) {
+    const { data } = await axios.get(
+      `/v1/projects/${projectId}/perspective/${perspectiveId}/my-response`
+    );
+    return data;
+  },
+
+  async listResponses(projectId: number, perspectiveId: number) {
+    const { data } = await axios.get(
+      `/v1/projects/${projectId}/perspective/${perspectiveId}/responses`
+    );
+    return data;
+  }
 };

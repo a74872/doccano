@@ -242,7 +242,7 @@ class Perspective(models.Model):
 
 class LabelPerspective(models.Model):
     """
-    Uma ‘etiqueta’ pertencente a uma Perspective
+    Uma 'etiqueta' pertencente a uma Perspective
     """
     class DataType(models.TextChoices):
         STRING = "string", "Texto livre"
@@ -286,3 +286,52 @@ class ChoiceOption(models.Model):
 
     def __str__(self):
         return self.value
+
+
+class PerspectiveResponse(models.Model):
+    """
+    Resposta de um usuário a uma perspectiva.
+    Uma perspectiva só pode ser respondida uma vez por usuário e label.
+    """
+    perspective = models.ForeignKey(Perspective, on_delete=models.CASCADE,
+                                  related_name="responses")
+    user = models.ForeignKey(User, on_delete=models.CASCADE,
+                           related_name="perspective_responses")
+    label = models.ForeignKey('LabelPerspective', on_delete=models.CASCADE, related_name='responses', null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    # Campos para armazenar as respostas
+    string_value = models.TextField(null=True, blank=True)
+    int_value = models.IntegerField(null=True, blank=True)
+    choice_value = models.ForeignKey(ChoiceOption, on_delete=models.SET_NULL,
+                                   null=True, blank=True)
+
+    class Meta:
+        unique_together = ("perspective", "user", "label")
+        ordering = ["-created_at"]
+
+    def clean(self):
+        """
+        Validação de consistência:
+        * Apenas um tipo de valor pode ser preenchido
+        * O tipo do valor deve corresponder ao tipo da label
+        """
+        from django.core.exceptions import ValidationError
+        
+        # Conta quantos valores estão preenchidos
+        values_count = sum(1 for v in [self.string_value, self.int_value, self.choice_value] if v is not None)
+        if values_count != 1:
+            raise ValidationError("Apenas um tipo de valor deve ser preenchido.")
+
+        # Verifica se o tipo do valor corresponde ao tipo da label
+        label = self.perspective.labels.first()  # Assumindo que cada perspectiva tem apenas uma label
+        if label:
+            if label.data_type == LabelPerspective.DataType.STRING and not self.string_value:
+                raise ValidationError("Valor de texto esperado.")
+            elif label.data_type == LabelPerspective.DataType.INT and not self.int_value:
+                raise ValidationError("Valor inteiro esperado.")
+            elif label.data_type == LabelPerspective.DataType.CHOICE and not self.choice_value:
+                raise ValidationError("Opção de escolha esperada.")
+
+    def __str__(self):
+        return f"Resposta de {self.user.username} para {self.perspective.title}"
