@@ -254,21 +254,31 @@ class PerspectiveResponseSerializer(serializers.ModelSerializer):
                 label = perspective.labels.filter(id=label_id).first()
                 if not label:
                     raise serializers.ValidationError(f"Label com id {label_id} não encontrada.")
-                payload = {
-                    'perspective': perspective,
-                    'user': user
-                }
+                # Verifica se já existe resposta para este trio
+                response, created = PerspectiveResponse.objects.get_or_create(
+                    perspective=perspective,
+                    user=user,
+                    label=label,
+                    defaults={}
+                )
+                # Atualiza o valor conforme o tipo da label
                 if label.data_type == LabelPerspective.DataType.STRING:
-                    payload['string_value'] = ans.get('string_value')
+                    response.string_value = ans.get('string_value')
+                    response.int_value = None
+                    response.choice_value = None
                 elif label.data_type == LabelPerspective.DataType.INT:
-                    payload['int_value'] = ans.get('int_value')
+                    response.int_value = ans.get('int_value')
+                    response.string_value = None
+                    response.choice_value = None
                 elif label.data_type == LabelPerspective.DataType.CHOICE:
                     choice_val = ans.get('choice_value')
                     choice = label.options.filter(value=choice_val).first()
                     if not choice:
                         raise serializers.ValidationError(f"Opção '{choice_val}' não encontrada para label {label.name}.")
-                    payload['choice_value'] = choice
-                response = PerspectiveResponse.objects.create(**payload)
+                    response.choice_value = choice
+                    response.string_value = None
+                    response.int_value = None
+                response.save()
                 responses.append(response)
             return responses
         # Caso antigo: criar uma resposta

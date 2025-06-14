@@ -65,6 +65,19 @@
         <v-icon left class="mr-2">mdi-pencil</v-icon>
         Edit
       </v-btn>
+
+      <!-- Responded -->
+      <v-btn
+        color="info"
+        class="ml-4 custom-btn"
+        min-width="180"
+        height="40"
+        :disabled="selected.length !== 1"
+        @click="openRespondedDialog"
+      >
+        <v-icon left class="mr-2">mdi-account-group</v-icon>
+        Responded
+      </v-btn>
     </div>
 
     <!-- perspectives table -->
@@ -282,6 +295,39 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- responded dialog -->
+    <v-dialog v-model="respondedDialog" max-width="800">
+      <v-card>
+        <v-card-title class="headline primary white--text">
+          <v-icon left color="white">mdi-account-group</v-icon>
+          Annotators Responses
+        </v-card-title>
+
+        <v-card-text v-if="selectedPerspective" class="pt-4">
+          <v-data-table
+            :headers="respondedHeaders"
+            :items="annotatorsResponses"
+            :loading="loadingResponses"
+            class="elevation-1"
+          >
+            <template #[`item.hasResponded`]="{ item }">
+              <v-icon
+                :color="item.hasResponded ? 'success' : 'error'"
+                :title="item.hasResponded ? 'Has responded' : 'Has not responded'"
+              >
+                {{ item.hasResponded ? 'mdi-check-circle' : 'mdi-close-circle' }}
+              </v-icon>
+            </template>
+          </v-data-table>
+        </v-card-text>
+
+        <v-card-actions>
+          <v-spacer />
+          <v-btn text @click="respondedDialog = false">Close</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -308,7 +354,15 @@ export default {
       ],
       rules: {
         required: v => !!v || 'This field is required'
-      }
+      },
+      respondedDialog: false,
+      loadingResponses: false,
+      annotatorsResponses: [],
+      respondedHeaders: [
+        { text: 'Username', value: 'username' },
+        { text: 'Has Responded', value: 'hasResponded', align: 'center' },
+        { text: 'Response Date', value: 'responseDate' }
+      ],
     }
   },
   async mounted() {
@@ -466,6 +520,58 @@ export default {
         this.error = 'Failed to submit answers. Please try again.'
       } finally {
         this.submitting = false
+      }
+    },
+    async openRespondedDialog() {
+      if (this.selected.length !== 1) return
+      try {
+        console.log('Opening responded dialog...')
+        this.respondedDialog = true
+        this.loadingResponses = true
+        const id = this.selected[0].id
+        console.log('Selected perspective ID:', id)
+        console.log('Project ID:', this.projectId)
+        
+        // Get all responses for this perspective
+        console.log('Fetching responses...')
+        const responses = await this.$repositories.perspective.listResponses(
+          this.projectId,
+          id
+        )
+        console.log('Responses received:', responses)
+        const responseList = responses.results || responses // suporta ambos formatos
+
+        // Get all project members
+        console.log('Fetching members...')
+        const members = await this.$repositories.member.list(this.projectId.toString())
+        console.log('Members received:', members)
+        
+        // Create a map of responses by user
+        const responsesByUser = {}
+        responseList.forEach(response => {
+          responsesByUser[response.user] = response
+        })
+        console.log('Responses by user:', responsesByUser)
+
+        // Create the final list combining members and their responses
+        this.annotatorsResponses = members.map(member => {
+          const response = responsesByUser[member.username]
+          console.log(`Processing member ${member.username}:`, response)
+          return {
+            username: member.username,
+            hasResponded: !!response,
+            responseDate: response?.created_at 
+              ? new Date(response.created_at).toLocaleString()
+              : '—'
+          }
+        })
+        console.log('Final annotators responses:', this.annotatorsResponses)
+
+      } catch (e) {
+        console.error('Error in openRespondedDialog:', e)
+        this.error = 'Unable to load annotators responses: ' + (e.message || 'Unknown error')
+      } finally {
+        this.loadingResponses = false
       }
     }
   }
