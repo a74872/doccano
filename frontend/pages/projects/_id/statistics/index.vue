@@ -38,7 +38,7 @@
             <v-select
               v-model="selectedReport"
               :items="annotationReportTypes"
-              label="Tipo de Relatório"
+              label="Report Type"
               outlined
               dense
               @change="onReportTypeChange"
@@ -130,7 +130,7 @@
               :disabled="!canGenerateReport"
               @click="generateReport"
             >
-              Gerar Relatório
+              Generate Report
             </v-btn>
 
             <v-btn
@@ -437,7 +437,7 @@ export default Vue.extend({
       annotationReportTypes: [
         { text: 'Relatório de Desacordos', value: 'disagreements' },
         { text: 'Relatório de Perspetivas', value: 'perspectives' },
-        { text: 'Histórico de Anotações', value: 'annotationHistory' }
+        { text: 'Annotation History', value: 'annotationHistory' }
       ],
       selectedDataset: null as string | null,
       selectedPerspective: null as number | null,
@@ -454,7 +454,7 @@ export default Vue.extend({
         { text: 'Relatório de Desacordos', value: 'disagreements' },
         { text: 'Relatório de Perspetivas', value: 'perspectives' },
         { text: 'Annotators Report', value: 'annotators' },
-        { text: 'Histórico de Anotações', value: 'annotationHistory' }
+        { text: 'Annotation History', value: 'annotationHistory' }
       ],
       datasets: [] as Dataset[],
       perspectives: [] as Perspective[],
@@ -560,7 +560,7 @@ export default Vue.extend({
         disagreements: 'Relatório de Desacordos',
         perspectives: 'Relatório de Perspetivas',
         annotators: 'Annotators Report',
-        annotationHistory: 'Histórico de Anotações'
+        annotationHistory: 'Annotation History'
       }
       return map[this.selectedReport] || ''
     },
@@ -788,14 +788,14 @@ export default Vue.extend({
       // 2. Cria a worksheet e o workbook
       const worksheet = XLSX.utils.json_to_sheet(data);
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Histórico de Anotações');
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Annotation History');
 
       // 3. Gera o ficheiro Excel
       const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
 
       // 4. Faz download
       const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
-      saveAs(blob, 'historico_anotacoes.xlsx');
+      saveAs(blob, 'Annotation-History.xlsx');
     },
 
     getLabelColor(labelName: string): string {

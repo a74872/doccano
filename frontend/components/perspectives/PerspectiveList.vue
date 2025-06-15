@@ -310,16 +310,7 @@
             :items="annotatorsResponses"
             :loading="loadingResponses"
             class="elevation-1"
-          >
-            <template #[`item.hasResponded`]="{ item }">
-              <v-icon
-                :color="item.hasResponded ? 'success' : 'error'"
-                :title="item.hasResponded ? 'Has responded' : 'Has not responded'"
-              >
-                {{ item.hasResponded ? 'mdi-check-circle' : 'mdi-close-circle' }}
-              </v-icon>
-            </template>
-          </v-data-table>
+          />
         </v-card-text>
 
         <v-card-actions>
@@ -360,7 +351,6 @@ export default {
       annotatorsResponses: [],
       respondedHeaders: [
         { text: 'Username', value: 'username' },
-        { text: 'Has Responded', value: 'hasResponded', align: 'center' },
         { text: 'Response Date', value: 'responseDate' }
       ],
     }
@@ -546,25 +536,13 @@ export default {
         const members = await this.$repositories.member.list(this.projectId.toString())
         console.log('Members received:', members)
         
-        // Create a map of responses by user
-        const responsesByUser = {}
-        responseList.forEach(response => {
-          responsesByUser[response.user] = response
-        })
-        console.log('Responses by user:', responsesByUser)
-
-        // Create the final list combining members and their responses
-        this.annotatorsResponses = members.map(member => {
-          const response = responsesByUser[member.username]
-          console.log(`Processing member ${member.username}:`, response)
-          return {
-            username: member.username,
-            hasResponded: !!response,
-            responseDate: response?.created_at 
-              ? new Date(response.created_at).toLocaleString()
-              : '—'
-          }
-        })
+        // Preencher a tabela
+        this.annotatorsResponses = members.map(member => ({
+          username: member.username,
+          responseDate: responseList.find(r => r.user === member.username)?.created_at
+            ? new Date(responseList.find(r => r.user === member.username).created_at).toLocaleString()
+            : '—'
+        }));
         console.log('Final annotators responses:', this.annotatorsResponses)
 
       } catch (e) {
