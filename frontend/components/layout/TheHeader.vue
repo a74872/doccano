@@ -5,7 +5,7 @@
       <img src="~/assets/speed.png" height="100" />
     </nuxt-link>
     <v-toolbar-title v-if="!isAuthenticated" class="ml-2 d-none d-sm-flex">
-      Doccano Grupo 16 - ✌️❤️ One love para a profª Paula Ventura 👩‍🏫 e profº Nestor Cataño 👨‍🏫
+      Doccano Grupo 16 - ✌️Profª Paula Ventura 👩‍🏫 & Profº Nestor Cataño 👨‍🏫
     </v-toolbar-title>
     <v-btn
       v-if="isAuthenticated && isIndividualProject"
