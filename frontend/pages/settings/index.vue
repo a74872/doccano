@@ -129,7 +129,7 @@ export default Vue.extend({
         if (!error.response || error.message?.includes('timeout') || error.message?.includes('Network Error') || (error.response?.status >= 500 && error.response?.status < 600)) {
           this.snackbar = {
             show: true,
-            text: 'Erro de conexão com o servidor. Por favor, tente novamente mais tarde.',
+            text: 'Connection error to the server. Please, try again later.',
             color: 'error'
           }
         }
@@ -148,7 +148,7 @@ export default Vue.extend({
       if (!error.response || error.message?.includes('timeout') || error.message?.includes('Network Error') || (error.response?.status >= 500 && error.response?.status < 600)) {
         this.snackbar = {
           show: true,
-          text: 'Erro de conexão com o servidor. Por favor, tente novamente mais tarde.',
+          text: 'Connection error to the server. Please, try again later.',
           color: 'error'
         }
       }

@@ -510,7 +510,7 @@ export default Vue.extend({
     onVotesError() {
       this.snackbar = {
         show: true,
-        text: 'Erro de conexão com o servidor. Por favor, tente novamente mais tarde.',
+        text: 'Connection error to the server. Please, try again later.',
         color: 'error'
       }
     },

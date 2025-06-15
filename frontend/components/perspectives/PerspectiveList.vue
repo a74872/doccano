@@ -558,7 +558,7 @@ export default {
         console.error('Error submitting answers:', e)
         this.snackbar = {
           show: true,
-          text: 'Erro ao enviar respostas. Por favor, verifique a sua conexão e tente novamente.',
+          text: 'Connection error to the server. Please, try again later',
           color: 'error'
         }
       } finally {
@@ -597,7 +597,7 @@ export default {
         console.error('Erro no openRespondedDialog:', e)
         this.snackbar = {
           show: true,
-          text: 'Erro ao carregar respostas dos anotadores. Por favor, verifique a sua conexão e tente novamente.',
+          text: 'Connection error to the server. Please, try again later',
           color: 'error'
         }
         this.respondedDialog = false

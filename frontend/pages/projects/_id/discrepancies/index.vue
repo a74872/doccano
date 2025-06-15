@@ -435,7 +435,7 @@ export default Vue.extend({
       } catch (e) {
         this.snackbar = {
           show: true,
-          text: 'Erro ao carregar as labels usadas. Por favor, verifique a sua conexão e tente novamente.',
+          text: 'Connection error to the server. Please, try again later.',
           color: 'error'
         }
       }

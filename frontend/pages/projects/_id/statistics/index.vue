@@ -774,7 +774,7 @@ export default Vue.extend({
             if (!error.response || error.message?.includes('timeout') || error.message?.includes('Network Error')) {
               this.snackbar = {
                 show: true,
-                text: 'Erro de conexão com o servidor. Por favor, tente novamente mais tarde.',
+                text: 'Connection error to the server. Please, try again later.',
                 color: 'error'
               }
               this.reportData = null
@@ -786,7 +786,7 @@ export default Vue.extend({
         }
 
         if (!this.reportData?.items?.length) {
-          this.error = 'Nenhum dado encontrado para os filtros selecionados.'
+          this.error = 'No data found for the selected filter.'
           this.reportData = null
         }
 
@@ -798,7 +798,7 @@ export default Vue.extend({
         ) {
           this.snackbar = {
             show: true,
-            text: 'Erro de conexão com o servidor. Por favor, tente novamente mais tarde.',
+            text: 'Connection error to the server. Please try again later.',
             color: 'error'
           }
           this.reportData = null
@@ -806,11 +806,11 @@ export default Vue.extend({
           return
         }
         if (error.response?.status === 500) {
-          this.error = 'O servidor encontrou um erro. Tente mais tarde.'
+          this.error = 'The server found an error. Please, try again.'
         } else if (error.response?.status === 404) {
-          this.error = 'Dados não encontrados para estes filtros.'
+          this.error = 'No data found for this filters.'
         } else {
-          this.error = 'Erro ao gerar relatório. Por favor, tente novamente.'
+          this.error = 'Error while generating the report. Please,try again.'
         }
         this.reportData = null
       } finally {
@@ -823,7 +823,7 @@ export default Vue.extend({
         if (this.selectedReport === 'annotationHistory') {
           this.snackbar = {
             show: true,
-            text: 'Não há dados para exportar. Por favor, gere um relatório primeiro.',
+            text: 'No data to export. Please, generate a report first.',
             color: 'error'
           }
         }
