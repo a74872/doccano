@@ -3,679 +3,831 @@
     <!-- Page title -->
     <v-row>
       <v-col cols="12">
-        <h1 class="text-h4 mb-4">Reports</h1>
+        <h1 class="text-h4 mb-4"></h1>
       </v-col>
     </v-row>
 
-    <!-- Filters Section -->
-    <v-card class="mb-4">
-      <v-card-title>
-        <v-icon left>mdi-filter</v-icon>
-        Filters
-      </v-card-title>
-      <v-card-text>
+    <!-- Selector buttons just under the title -->
+    <v-row class="mb-4">
+      <v-col cols="12" class="d-flex">
+        <v-btn
+          :color="activeSection === 'annotations' ? 'primary' : 'grey lighten-1'"
+          class="mr-3"
+          depressed
+          @click="toggleSection('annotations')"
+        >
+          Annotations
+        </v-btn>
+
+        <v-btn
+          :color="activeSection === 'annotators' ? 'primary' : 'grey lighten-1'"
+          depressed
+          @click="toggleSection('annotators')"
+        >
+          Annotators
+        </v-btn>
+      </v-col>
+    </v-row>
+
+    <!-- ============================  ANNOTATIONS SECTION  ============================ -->
+    <v-expand-transition>
+      <div v-if="activeSection === 'annotations'">
+        <!-- Sub-report type (Desacordos | Perspetivas)  -->
         <v-row>
-          <!-- Date Filter -->
           <v-col cols="12" md="4">
+            <v-select
+              v-model="selectedReport"
+              :items="annotationReportTypes"
+              label="Tipo de Relatório"
+              outlined
+              dense
+              @change="onReportTypeChange"
+            />
+          </v-col>
+        </v-row>
+
+        <!-- Annotation-specific filters -->
+        <v-row>
+          <v-col cols="12" md="4">
+            <v-select
+              v-if="showDatasetFilter && selectedReport !== 'annotationHistory'"
+              v-model="selectedDataset"
+              :items="datasets"
+              item-text="name"
+              item-value="id"
+              label="Dataset"
+              outlined
+              dense
+              :loading="loadingDatasets"
+            />
+
+            <v-select
+              v-else-if="selectedReport === 'annotationHistory' && examples.length > 0"
+              v-model="selectedExample"
+              :items="examples"
+              item-text="name"
+              item-value="name"
+              label="Dataset Name"
+              outlined
+              dense
+            />
+
+            <v-select
+              v-if="selectedReport === 'annotationHistory'"
+              v-model="selectedMember"
+              :items="memberItems"
+              label="Annotator"
+              outlined
+              dense
+              :loading="loadingMembers"
+            />
+
+            <v-select
+              v-if="selectedReport === 'annotationHistory'"
+              v-model="selectedLabel"
+              :items="labelItems"
+              label="Label"
+              outlined
+              dense
+              :loading="loadingLabels"
+            />
+
+            <v-select
+              v-else-if="showPerspectiveFilter"
+              v-model="selectedPerspective"
+              :items="perspectives"
+              item-text="name"
+              item-value="id"
+              label="Perspetiva"
+              outlined
+              dense
+              :loading="loadingPerspectives"
+            />
+          </v-col>
+
+          <v-col cols="12" md="4">
+            <v-select
+              v-if="showDiscussionFilter"
+              v-model="selectedDiscussion"
+              :items="discussions"
+              item-text="title"
+              item-value="id"
+              label="Título da Discussão"
+              outlined
+              dense
+              :loading="loadingDiscussions"
+            />
+          </v-col>
+        </v-row>
+
+        <!-- Action buttons -->
+        <v-row>
+          <v-col cols="12">
+            <v-btn
+              color="primary"
+              class="mr-2"
+              :loading="loading"
+              :disabled="!canGenerateReport"
+              @click="generateReport"
+            >
+              Gerar Relatório
+            </v-btn>
+
+            <v-btn
+              color="secondary"
+              :disabled="!reportData"
+              @click="exportReport"
+            >
+              Export Report
+            </v-btn>
+          </v-col>
+        </v-row>
+
+        <!-- Report table(s) for annotations -->
+        <v-row v-if="reportData && (selectedReport === 'disagreements' || selectedReport === 'perspectives')">
+          <v-col cols="12">
+            <v-card>
+              <v-card-title>{{ reportTitle }}</v-card-title>
+              <v-card-text>
+                <div v-if="selectedReport === 'disagreements'">
+                  <v-data-table
+                    :headers="disagreementHeaders"
+                    :items="reportData.items"
+                    :loading="loading"
+                  />
+                </div>
+                <div v-else-if="selectedReport === 'perspectives'">
+                  <v-data-table
+                    :headers="perspectiveHeaders"
+                    :items="reportData.items"
+                    :loading="loading"
+                  />
+                </div>
+              </v-card-text>
+            </v-card>
+          </v-col>
+        </v-row>
+
+        <v-row v-if="reportData && selectedReport === 'annotationHistory'">
+          <v-col cols="12">
+            <v-card>
+              <v-card-title>
+                {{ reportTitle }}
+                <v-spacer />
+
+                <!-- Menu de datas para histórico de anotações -->
+                <v-menu
+                  v-if="selectedReport === 'annotationHistory'"
+                  v-model="dateMenu"
+                  :close-on-content-click="false"
+                  offset-y
+                  transition="scale-transition"
+                  max-width="320"
+                >
+                  <template #activator="{ on, attrs }">
+                    <v-btn
+                      v-bind="attrs"
+                      v-on="on"
+                      color="primary"
+                      class="d-flex align-center px-3 py-2"
+                      elevation="0"
+                    >
+                      <span class="mr-2 subtitle-2 font-weight-medium">
+                        {{ dateFilterLabel }}
+                      </span>
+                      <v-icon small>{{ icons.calendar }}</v-icon>
+                    </v-btn>
+                  </template>
+
+                  <v-card>
+                    <v-card-text style="width:340px">
+                      <div class="subtitle-2 mb-1">Start date</div>
+                      <v-date-picker
+                        v-model="startDate"
+                        :max="endDate || undefined"
+                        label="Start date"
+                        scrollable
+                        class="mb-2"
+                      />
+
+                      <div class="subtitle-2 mb-1">End date</div>
+                      <v-date-picker
+                        v-model="endDate"
+                        :min="startDate || undefined"
+                        label="End date"
+                        scrollable
+                      />
+                    </v-card-text>
+                    <v-card-actions class="justify-end pr-20" style="margin-right:10px">
+                      <v-btn text @click="clearDates">Clean </v-btn>
+                      <v-btn color="primary" @click="dateMenu=false">OK </v-btn>
+                    </v-card-actions>
+                  </v-card>
+                </v-menu>
+              </v-card-title>
+
+              <v-card-text>
+                <v-data-table
+                  :headers="annotationHistoryHeaders"
+                  :items="filteredItems"
+                  :loading="loading"
+                />
+              </v-card-text>
+            </v-card>
+          </v-col>
+        </v-row>
+      </div>
+    </v-expand-transition>
+
+    <!-- =======================  ANNOTATORS SECTION  ======================= -->
+    <v-expand-transition>
+      <div v-if="activeSection === 'annotators'">
+        <!-- ---------- card único com título + botão-calendário -------- -->
+
+        <!-- ---------- select de membro + botões ----------------------- -->
+        <!-- ❶ LINHA dos filtros + botões  -->
+        <v-row class="mb-4" align="center">
+          <!-- SELECT ocupa 4 colunas em md+  -->
+          <v-col cols="12" md="4">
+            <v-select
+              v-model="selectedMember"
+              :items="memberItems"
+              label="Annotator"
+              outlined
+              dense
+              :loading="loadingMembers"
+            />
+          </v-col>
+
+          <!-- BOTÕES: col "auto" e alinhados à direita -->
+          <v-col
+            cols="12"
+            md="8"
+            class="d-flex justify-mid align-center mt-n7"
+          >
+            <v-btn
+              color="primary"
+              large
+              class="mr-2"
+              :loading="loading"
+              :disabled="!canGenerateReport"
+              @click="generateReport"
+            >
+              Generate&nbsp;Report
+            </v-btn>
+
+            <v-btn
+              color="secondary"
+              large
+              :disabled="!reportData"
+              @click="exportReport"
+            >
+              Export&nbsp;Report
+            </v-btn>
+          </v-col>
+        </v-row>
+
+        <v-card>
+          <v-card-title>
+            {{ reportTitle }}
+            <v-spacer />
+
+            <!-- activator do menu de datas -->
             <v-menu
               v-model="dateMenu"
               :close-on-content-click="false"
               offset-y
-              max-width="290px"
+              transition="scale-transition"
+              max-width="320"
             >
               <template #activator="{ on, attrs }">
-                <v-text-field
-                  :value="dateRangeText"
-                  label="Filter by Date"
-                  prepend-icon="mdi-calendar"
-                  readonly
-                  outlined
-                  dense
+                <!-- botão que abre o menu -->
+                <v-btn
                   v-bind="attrs"
                   v-on="on"
-                />
+                  color="primary"
+                  class="d-flex align-center px-3 py-2"
+                  elevation="0"
+                >
+                  <!-- título / legenda -->
+                  <span class="mr-2 subtitle-2 font-weight-medium">
+                    Data filter
+                  </span>
+
+                  <!-- ícone do calendário -->
+                  <v-icon small>{{ icons.calendar }}</v-icon>
+                </v-btn>
               </template>
-              <v-date-picker
-                v-model="selectedDates"
-                range
-                @input="dateMenu = false"
-              />
+
+              <!-- ---- pickers dentro do menu ---- -->
+              <v-card>
+                <v-card-text style="width:340px">
+                  <div class="subtitle-2 mb-1">Start date</div>
+                  <v-date-picker
+                    v-model="startDate"
+                    :max="endDate || undefined"
+                    label="Start date"
+                    scrollable
+                    class="mb-2"
+                  />
+
+                  <div class="subtitle-2 mb-1">End date</div>
+                  <v-date-picker
+                    v-model="endDate"
+                    :min="startDate || undefined"
+                    label="End date"
+                    scrollable
+                  />
+                </v-card-text>
+                <v-card-actions class="justify-end pr-20" style="margin-right:10px">
+                  <v-btn text  @click="clearDates">Clean </v-btn>
+                  <v-btn color="primary" @click="dateMenu=false">OK </v-btn>
+                </v-card-actions>
+              </v-card>
             </v-menu>
-          </v-col>
+          </v-card-title>
 
-          <!-- User Filter -->
-          <v-col cols="12" md="4">
-            <v-select
-              v-model="selectedUser"
-              :items="userOptions"
-              label="Filter by User"
-              prepend-icon="mdi-account"
-              outlined
-              dense
-              clearable
-              :loading="loadingUsers"
-            />
-          </v-col>
-
-          <!-- Label Filter -->
-          <v-col cols="12" md="4">
-            <v-select
-              v-model="selectedLabel"
-              :items="labelOptions"
-              label="Filter by Label"
-              prepend-icon="mdi-tag"
-              outlined
-              dense
-              clearable
-              :loading="loadingLabels"
-            />
-          </v-col>
-        </v-row>
-
-        <!-- Action Buttons -->
-        <v-row>
-          <v-col cols="12" class="text-right">
-            <v-btn
-              color="grey"
-              text
-              class="mr-2"
-              @click="clearFilters"
-            >
-              Clear Filters
-            </v-btn>
-            <v-btn
-              color="primary"
+          <!-- ---------- tabela filtrada ------------------------------- -->
+          <v-card-text>
+            <v-data-table
+              :headers="annotatorHeaders"
+              :items="filteredItems"
               :loading="loading"
-              @click="generateReport"
-            >
-              <v-icon left>mdi-chart-line</v-icon>
-              Generate Report
-            </v-btn>
-          </v-col>
-        </v-row>
-      </v-card-text>
-    </v-card>
+            />
+          </v-card-text>
+        </v-card>
+      </div>
+    </v-expand-transition>
 
-    <!-- Results Section -->
-    <v-card v-if="reportData">
-      <v-card-title>
-        Report Results
-        <v-spacer />
-        <v-btn
-          color="success"
-          small
-          :disabled="!reportData || !reportData.length"
-          :loading="exportLoading"
-          @click="exportReport"
-        >
-          <v-icon left small>mdi-download</v-icon>
-          Export
-        </v-btn>
-      </v-card-title>
-      <v-card-text>
-        <!-- Summary Cards -->
-        <v-row class="mb-4">
-          <v-col cols="12" sm="6" md="3">
-            <v-card color="primary" dark>
-              <v-card-text>
-                <div class="text-h6">{{ totalAnnotations }}</div>
-                <div>Total Annotations</div>
-              </v-card-text>
-            </v-card>
-          </v-col>
-          <v-col cols="12" sm="6" md="3">
-            <v-card color="success" dark>
-              <v-card-text>
-                <div class="text-h6">{{ uniqueUsers }}</div>
-                <div>Active Users</div>
-              </v-card-text>
-            </v-card>
-          </v-col>
-          <v-col cols="12" sm="6" md="3">
-            <v-card color="info" dark>
-              <v-card-text>
-                <div class="text-h6">{{ uniqueLabels }}</div>
-                <div>Different Labels</div>
-              </v-card-text>
-            </v-card>
-          </v-col>
-          <v-col cols="12" sm="6" md="3">
-            <v-card color="warning" dark>
-              <v-card-text>
-                <div class="text-h6">{{ dateRange }}</div>
-                <div>Period</div>
-              </v-card-text>
-            </v-card>
-          </v-col>
-        </v-row>
-
-        <!-- Data Table -->
-        <v-data-table
-          :headers="headers"
-          :items="reportData"
-          :loading="loading"
-          :items-per-page="10"
-          class="elevation-1"
-        >
-          <template #[`item.date`]="{ item }">
-            {{ formatDate(item.date) }}
-          </template>
-          <template #[`item.label`]="{ item }">
-            <v-chip
-              small
-              :color="getLabelColor(item.label)"
-              :text-color="getLabelTextColor(item.label)"
-            >
-              {{ item.label }}
-            </v-chip>
-          </template>
-          <template #[`item.user`]="{ item }">
-            {{ getUserDisplayName(item.user) }}
-          </template>
-        </v-data-table>
-      </v-card-text>
-    </v-card>
-
-    <!-- No Data Message -->
-    <v-card v-else-if="!loading && hasSearched">
-      <v-card-text class="text-center py-8">
-        <v-icon size="64" color="grey lighten-1">mdi-database-search</v-icon>
-        <div class="text-h6 grey--text mt-4">No data found</div>
-        <div class="grey--text">Try adjusting the filters and generate again</div>
-      </v-card-text>
-    </v-card>
-
-    <!-- Snackbar for notifications -->
-    <v-snackbar
-      v-model="snackbar.show"
-      :color="snackbar.color"
-      :timeout="snackbar.timeout"
-      bottom
-      right
-    >
-      <v-icon left dark>{{ snackbar.icon }}</v-icon>
-      {{ snackbar.message }}
-      <template #action="{ attrs }">
-        <v-btn
-          text
-          v-bind="attrs"
-          @click="snackbar.show = false"
-        >
-          Close
-        </v-btn>
-      </template>
-    </v-snackbar>
+    <!-- ============================  ERROR ============================ -->
+    <v-row v-if="error">
+      <v-col cols="12">
+        <v-alert type="error" border="left" colored-border elevation="2">
+          {{ error }}
+        </v-alert>
+      </v-col>
+    </v-row>
   </v-container>
 </template>
 
-<script>
-import { mapGetters } from 'vuex'
+<script lang="ts">
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 
-export default {
-  name: 'ProjectReports',
-  
+import Vue from 'vue'
+import { mdiCalendarRange } from '@mdi/js'
+import { Perspective } from '~/domain/models/perspective/perspective'
+import { APIStatisticsRepository } from '~/repositories/statistics/apiStatisticsRepository'
+
+interface ReportData {
+  items: Array<{
+    document?: number
+    annotator1?: number
+    annotator2?: number
+    disagreementRate?: number
+    disagreementCategories?: string[]
+    perspective?: string
+    total?: number
+    categories?: string
+    datasets?: Array<{
+      document: number
+      categories: Array<{
+        name: string
+        count: number
+        percentage: string
+      }>
+    }>
+  }>
+}
+
+interface Dataset {
+  id: number
+  name: string
+}
+
+interface Discussion {
+  id: number
+  title: string
+}
+
+interface LabelItem {
+  text: string
+  backgroundColor: string
+  textColor: string
+}
+
+export default Vue.extend({
   layout: 'project',
   middleware: ['check-auth', 'auth', 'setCurrentProject'],
 
+  validate({ params }) {
+    return /^\d+$/.test(params.id)
+  },
+
   data() {
     return {
-      // Filters
-      dateMenu: false,
-      selectedDates: [],
-      selectedUser: null,
-      selectedLabel: null,
-      
-      // Loading states
-      loading: false,
-      loadingUsers: false,
+      icons: {calendar: mdiCalendarRange,},
+      dateMenu  : false,
+      startDate : null as string | null,
+      endDate   : null as string | null,
+      activeSection: null as 'annotations' | 'annotators' | null,
+      selectedReport : 'annotators',
+      selectedLabel: null as string | null,
       loadingLabels: false,
-      exportLoading: false,
-      
-      // Data
-      reportData: null,
-      userOptions: [],
-      labelOptions: [],
-      members: [],
-      labels: [],
-      
-      // State
-      hasSearched: false,
-      
-      // Snackbar
-      snackbar: {
-        show: false,
-        message: '',
-        color: 'success',
-        icon: 'mdi-check-circle',
-        timeout: 5000
-      },
-      
-      // Table headers
+      annotationReportTypes: [
+        { text: 'Relatório de Desacordos', value: 'disagreements' },
+        { text: 'Relatório de Perspetivas', value: 'perspectives' },
+        { text: 'Histórico de Anotações', value: 'annotationHistory' }
+      ],
+      selectedDataset: null as string | null,
+      selectedPerspective: null as number | null,
+      selectedMember : 'ALL' as string,
+      selectedDiscussion: null as number | null,
+      selectedExample: null as string | null,
+      loading: false,
+      loadingDatasets: false,
+      loadingPerspectives: false,
+      loadingMembers: false,
+      loadingDiscussions: false,
+      reportData: null as ReportData | null,
+      reportTypes: [
+        { text: 'Relatório de Desacordos', value: 'disagreements' },
+        { text: 'Relatório de Perspetivas', value: 'perspectives' },
+        { text: 'Annotators Report', value: 'annotators' },
+        { text: 'Histórico de Anotações', value: 'annotationHistory' }
+      ],
+      datasets: [] as Dataset[],
+      perspectives: [] as Perspective[],
+      members: [] as { username:string }[],
+      discussions: [] as Discussion[],
+      disagreementHeaders: [
+        { text: 'Documento', value: 'document' },
+        { text: 'Annotator 1', value: 'annotator1' },
+        { text: 'Annotator 2', value: 'annotator2' },
+        { text: 'Taxa de Desacordo', value: 'disagreementRate' },
+        { text: 'Categorias em Desacordo', value: 'disagreementCategories' }
+      ],
+      perspectiveHeaders: [
+        { text: 'Documento', value: 'document' },
+        { text: 'Annotator', value: 'annotator' },
+        { text: 'Categoria', value: 'category' },
+        { text: 'Frequência', value: 'frequency' },
+        { text: 'Percentagem', value: 'percentage' }
+      ],
+      annotatorHeaders: [
+        { text: 'Annotator', value: 'annotator' },
+        { text: 'Dataset Name', value: 'example' },
+        { text: 'Last Modification', value: 'date'      },
+        { text: 'Total Labels', value: 'total' },
+        { text: 'Labels Used', value: 'categories' }
+      ],
       headers: [
-        { text: 'Date', value: 'date', sortable: true },
-        { text: 'User', value: 'user', sortable: true },
-        { text: 'Label', value: 'label', sortable: true },
-        { text: 'Dataset', value: 'dataset', sortable: true },
-        { text: 'Document', value: 'document', sortable: true }
-      ]
+        { text: 'Annotator', value: 'annotator' },
+        { text: 'Total Annotations', value: 'total' },
+        { text: 'Categories', value: 'categories' },
+        { text: 'Datasets', value: 'datasets' }
+      ],
+      labels: [] as LabelItem[],
+      projectId: 0,
+      error: null as string | null,
+      annotationHistoryHeaders: [
+        { text: 'Annotator', value: 'annotator' },
+        { text: 'Dataset Name', value: 'example' },
+        { text: 'Label', value: 'label' },
+        { text: 'Date', value: 'date' }
+      ],
+      examples: [] as { name: string }[],
     }
   },
 
   computed: {
-    ...mapGetters('projects', ['project']),
-
-    projectId() {
-      return this.$route.params.id
+    showDatasetFilter(): boolean {
+      return (
+        this.selectedReport === 'disagreements' ||
+        this.selectedReport === 'annotationHistory'
+      )
+    },
+    showPerspectiveFilter(): boolean {
+      return this.selectedReport === 'perspectives'
+    },
+    showMemberFilter(): boolean {
+      return this.selectedReport === 'annotators'
+    },
+    showDiscussionFilter(): boolean {
+      return this.selectedReport === 'disagreements' && this.selectedDataset !== null
     },
 
-    dateRangeText() {
-      if (!this.selectedDates || this.selectedDates.length === 0) {
-        return 'Select period'
+    memberItems (): { text:string, value:string }[] {
+      return [
+        { text:'All', value:'ALL' },
+        ...this.members.map(m => ({ text:m.username, value:m.username }))
+      ]
+    },
+
+    labelItems(): { text: string; value: string }[] {
+      return [
+        { text: 'All', value: 'ALL' },
+        ...this.labels.map(l => ({ text: l.text, value: l.text }))
+      ]
+    },
+
+    exampleItems(): { text: string; value: string }[] {
+      return [
+        { text: 'All', value: 'ALL' },
+        ...this.examples.map(ex => ({ text: ex.name, value: ex.name }))
+      ]
+    },
+
+    canGenerateReport(): boolean {
+      switch (this.selectedReport) {
+        case 'disagreements':
+          return this.selectedDataset !== null && this.selectedDiscussion !== null
+        case 'perspectives':
+          return this.selectedPerspective !== null
+        case 'annotators':
+          return true
+        case 'annotationHistory':
+          // Permite gerar o relatório se pelo menos um filtro estiver selecionado
+          return this.selectedExample !== null || 
+                 this.selectedMember !== 'ALL' || 
+                 this.selectedLabel !== null
+        default:
+          return false
       }
-      if (this.selectedDates.length === 1) {
-        return this.selectedDates[0]
+    },
+    reportTitle(): string {
+      const map: Record<string, string> = {
+        disagreements: 'Relatório de Desacordos',
+        perspectives: 'Relatório de Perspetivas',
+        annotators: 'Annotators Report',
+        annotationHistory: 'Histórico de Anotações'
       }
-      return `${this.selectedDates[0]} to ${this.selectedDates[1]}`
+      return map[this.selectedReport] || ''
     },
 
-    totalAnnotations() {
-      return this.reportData ? this.reportData.length : 0
+    /* label resumido no botão */
+    dateFilterLabel (): string {
+      if (!this.startDate && !this.endDate) return 'Filtrar por data'
+      if (this.startDate && this.endDate)   return `${this.startDate} → ${this.endDate}`
+      return this.startDate || this.endDate || ''
     },
 
-    uniqueUsers() {
-      if (!this.reportData) return 0
-      return new Set(this.reportData.map(item => item.user)).size
-    },
+    /* linhas aplicando o intervalo de datas */
+    filteredItems (): any[] {
+      if (!this.reportData) return []
+      let items = this.reportData.items
 
-    uniqueLabels() {
-      if (!this.reportData) return 0
-      return new Set(this.reportData.map(item => item.label)).size
-    },
-
-    dateRange() {
-      if (!this.reportData || this.reportData.length === 0) return '-'
-      const dates = this.reportData.map(item => new Date(item.date)).sort()
-      const firstDate = dates[0]
-      const lastDate = dates[dates.length - 1]
-      
-      if (firstDate.toDateString() === lastDate.toDateString()) {
-        return this.formatDate(firstDate)
+      // Aplica filtro de exemplo se selecionado
+      if (this.selectedReport === 'annotationHistory' && this.selectedExample) {
+        items = items.filter((row: any) => row.example === this.selectedExample)
       }
-      return `${this.formatDate(firstDate)} - ${this.formatDate(lastDate)}`
+
+      // Aplica filtro de anotador se selecionado
+      if (this.selectedReport === 'annotationHistory' && this.selectedMember !== 'ALL') {
+        items = items.filter((row: any) => row.annotator === this.selectedMember)
+      }
+
+      // Aplica filtro de label se selecionado
+      if (this.selectedReport === 'annotationHistory' && this.selectedLabel && this.selectedLabel !== 'ALL') {
+        items = items.filter((row: any) => row.label === this.selectedLabel)
+      }
+
+      // Aplica filtro de datas
+      const { startDate, endDate } = this
+      if (!startDate && !endDate) return items
+      const t0 = startDate ? new Date(startDate) : null
+      const t1 = endDate   ? new Date(endDate)   : null
+      return items.filter(row => {
+        if (!row.date) return false
+        const ts = new Date(row.date)
+        if (t0 && ts < t0) return false
+        if (t1 && ts > new Date(t1.getTime()+86400000-1)) return false
+        return true
+      })
     }
+
   },
 
-  async mounted() {
-    await this.loadFiltersData()
+  async fetch() {
+    await this.loadInitialData()
   },
 
   methods: {
-    showSnackbar(message, color = 'success', icon = 'mdi-check-circle', timeout = 5000) {
-      this.snackbar = {
-        show: true,
-        message,
-        color,
-        icon,
-        timeout
+    /* Toggle the two main sections */
+    toggleSection(section: 'annotations' | 'annotators') {
+      // If the user clicks the already‑open section, collapse it
+      if (this.activeSection === section) {
+        this.activeSection = null
+        return
       }
+
+      // Open the requested section and set an appropriate default reportType
+      this.activeSection = section
+      this.selectedReport = section === 'annotators' ? 'annotators' : 'disagreements'
+      this.onReportTypeChange()
     },
 
-    async loadFiltersData() {
-      try {
-        // Load users and labels in parallel
-        await Promise.all([
-          this.loadUsers(),
-          this.loadLabels()
-        ])
-      } catch (error) {
-        this.showSnackbar('Error loading filter data', 'error', 'mdi-alert-circle')
-        console.error(error)
-      }
+    async loadInitialData() {
+      const projectId = parseInt(this.$route.params.id)
+      await Promise.all([
+        this.loadDatasets(projectId),
+        this.loadPerspectives(projectId),
+        this.loadMembers(projectId),
+        this.loadExamples(projectId),
+        this.loadLabels()
+      ])
     },
 
-    async loadUsers() {
+    async loadDatasets(projectId: number) {
+      this.loadingDatasets = true
       try {
-        this.loadingUsers = true
-        
-        // Use the same API call as in the other component
-        this.members = await this.$repositories.member.list(this.projectId)
-        
-        // Transform to select options
-        this.userOptions = this.members.map(member => ({
-          text: member.username || member.email || `User ${member.id}`,
-          value: String(member.id)          // <- garante string
-        }))
+        // Buscar datasets reais do projeto
+        const datasets = await this.$repositories.catalog.list(projectId.toString())
+        this.datasets = datasets.map((d: any) => ({ id: d.taskId, name: d.displayName || d.display_name || d.name }))
       } catch (error) {
-        console.error('Error loading users:', error)
-        // Fallback to empty array if API fails
-        this.userOptions = []
+        console.error('Erro ao carregar datasets:', error)
       } finally {
-        this.loadingUsers = false
+        this.loadingDatasets = false
       }
     },
 
-    async loadLabels() {
+    async loadPerspectives(projectId: number) {
+      this.loadingPerspectives = true
       try {
-        this.loadingLabels = true
-        
-        // Use the same API call as in the other component
-        this.labels = await this.$services.categoryType.list(this.projectId)
-        
-        // Transform to select options
-        this.labelOptions = this.labels.map(label => ({
-          text: label.text,
-          value: label.text
-        }))
-        
+        this.perspectives = await this.$repositories.perspective.getPerspectives(projectId)
       } catch (error) {
-        console.error('Error loading labels:', error)
-        // Fallback to empty array if API fails
-        this.labelOptions = []
+        console.error('Erro ao carregar perspetivas:', error)
       } finally {
-        this.loadingLabels = false
+        this.loadingPerspectives = false
       }
     },
 
-    async generateReport() {
+    async loadMembers (projectId: number) {
+      this.loadingMembers = true
+      try {
+        const dist = await this.$repositories.metrics
+                            .fetchCategoryDistribution(projectId.toString(), {})
+        this.members = Object.keys(dist).map(username => ({ username }))
+      } finally {
+        this.loadingMembers = false
+      }
+    },
+
+    async loadExamples(projectId: number) {
+      try {
+        const response = await this.$repositories.example.list(projectId.toString(), {});
+        const items = response.items || [];
+        const uniqueExamples = Array.from(new Set(items.map((ex: any) => ex.upload_name || ex.filename?.split('/').pop() || `#${ex.id}`)));
+        this.examples = uniqueExamples.map((name: string) => ({ name }));
+      } catch (error) {
+        console.error('Erro ao carregar exemplos:', error);
+        this.examples = [];
+      }
+    },
+
+    async loadDiscussions(_projectId: number, _datasetId: number) {
+      this.loadingDiscussions = true
+      try {
+        // TODO: Implementar chamada à API para obter discussões
+        const response = await new Promise<{ results: Discussion[] }>(resolve => {
+          setTimeout(() => {
+            resolve({
+              results: [
+                { id: 1, title: 'Discussão 1' },
+                { id: 2, title: 'Discussão 2' }
+              ]
+            })
+          }, 1000)
+        })
+        this.discussions = response.results
+      } catch (error) {
+        console.error('Erro ao carregar discussões:', error)
+      } finally {
+        this.loadingDiscussions = false
+      }
+    },
+
+    onReportTypeChange() {
+      // Resetar seleções quando o tipo de relatório muda
+      this.selectedDataset = null
+      this.selectedPerspective = null
+      this.selectedMember = 'ALL'
+      this.selectedDiscussion = null
+      this.selectedExample = null
+      this.selectedLabel = null
+      this.reportData = null
+    },
+
+    async generateReport () {
+      this.startDate = this.endDate = null
       this.loading = true
-      this.hasSearched = true
+      this.error   = null
+
+      const projectId = Number(this.$route.params.id)
+      const statisticsRepository = this.$repositories.statistics as APIStatisticsRepository
+
+      /* ------------ filtros visíveis em todo o método ------------ */
+      const filters = {
+        dataset    : this.selectedDataset    || undefined,
+        discussion : this.selectedDiscussion || undefined,
+        perspective: this.selectedPerspective|| undefined,
+        member     : this.selectedMember === 'ALL' ? undefined : this.selectedMember,
+        example    : this.selectedExample    || undefined
+      }
 
       try {
-        // Build query parameters - mantemos apenas filtros que a API suporta
-        const query = {}
-        
-        if (this.selectedLabel) {
-          query.label = this.selectedLabel
+        if (this.selectedReport === 'annotators') {
+          // "ALL" → undefined → devolve todos os membros
+          this.reportData = await statisticsRepository.generateAnnotatorReport(
+            projectId.toString(),
+            { member: filters.member }
+          )
+        } else if (this.selectedReport === 'disagreements') {
+          this.reportData = await statisticsRepository.generateDisagreementReport(projectId, filters)
+        } else if (this.selectedReport === 'perspectives') {
+          this.reportData = await statisticsRepository.generatePerspectiveReport(projectId, filters)
+        } else { /* annotationHistory */
+          this.reportData = await statisticsRepository.generateAnnotationHistoryReport(
+            projectId.toString(),
+            filters.example,
+            { member: filters.member }
+          )
         }
 
-        // Get examples with filters
-        const exampleList = await this.$services.example.list(this.projectId, query)
-        
-        // Transform the data for the report (aplicamos todos os filtros localmente)
-        this.reportData = await this.transformExampleData(exampleList.items)
+        if (!this.reportData?.items?.length) {
+          this.error = 'Nenhum dado encontrado para os filtros selecionados.'
+          this.reportData = null
+        }
 
-        if (this.reportData.length === 0) {
-          this.showSnackbar(
-            'No annotations found with the applied filters. Try adjusting the search criteria.',
-            'warning',
-            'mdi-alert',
-            6000
-          )
+      } catch (error: any) {
+        console.error('API-error:', error)
+        if (error.response?.status === 500) {
+          this.error = 'O servidor encontrou um erro. Tente mais tarde.'
+        } else if (error.response?.status === 404) {
+          this.error = 'Dados não encontrados para estes filtros.'
         } else {
-          this.showSnackbar(
-            `Report generated successfully! Found ${this.reportData.length} annotations.`,
-            'success',
-            'mdi-check-circle'
-          )
+          this.error = error.response?.data?.detail || error.message || 'Erro ao gerar relatório'
         }
-
-      } catch (error) {
-        this.showSnackbar(
-          'Database error while generating report. Check connection and try again.',
-          'error',
-          'mdi-database-alert',
-          8000
-        )
-        console.error(error)
-        this.reportData = []
+        this.reportData = null
       } finally {
         this.loading = false
       }
     },
 
-    /* -------- transformExampleData -------- */
-    async transformExampleData(examples) {
-      const reportData = [];
-
-      for (const example of examples) {
-        try {
-          const distribution =
-            await this.$repositories.metrics.fetchCategoryDistribution(
-              this.projectId,
-              { example: example.id }
-            );
-
-          // Percorre cada utilizador
-          for (const uidStr in distribution) {
-            // Converte se for numérico; caso contrário fica string
-            const uidNum = Number(uidStr);
-            const uid = Number.isNaN(uidNum) ? uidStr : uidNum;
-
-            // Filtro de utilizador (só compara se o uid for numérico)
-            if (
-              this.selectedUser !== null &&
-              !Number.isNaN(uidNum) &&
-              uid !== this.selectedUser
-            ) {
-              continue;
-            }
-
-            const userLabels = distribution[uidStr];
-
-            // Entradas por label
-            for (const [labelName, count] of Object.entries(userLabels)) {
-              if (this.selectedLabel && labelName !== this.selectedLabel) {
-                continue;
-              }
-
-              for (let i = 0; i < count; i++) {
-                const annotationDate =
-                  example.createdAt ||
-                  new Date().toISOString().split("T")[0];
-
-                // ----- filtro de datas -----
-                if (this.selectedDates && this.selectedDates.length > 0) {
-                  const exampleDate = new Date(annotationDate);
-                  const startDate = new Date(this.selectedDates[0]);
-
-                  if (this.selectedDates.length === 1) {
-                    const selDate = new Date(this.selectedDates[0]);
-                    if (
-                      exampleDate.toDateString() !== selDate.toDateString()
-                    ) {
-                      continue;
-                    }
-                  } else if (this.selectedDates.length === 2) {
-                    const endDate = new Date(this.selectedDates[1]);
-                    if (exampleDate < startDate || exampleDate > endDate) {
-                      continue;
-                    }
-                  }
-                }
-                // ----- fim filtro de datas -----
-
-                reportData.push({
-                  id: `${example.id}-${uid}-${labelName}-${i}`,
-                  date: annotationDate,
-                  user: uid,                // pode ser number OU string
-                  label: labelName,
-                  dataset: this.project.name || "Dataset",
-                  document: example.text
-                    ? example.text.length > 50
-                      ? example.text.substring(0, 50) + "..."
-                      : example.text
-                    : example.filename || `Doc_${example.id}`,
-                });
-              }
-            }
-          }
-        } catch (err) {
-          console.error(`Error processing example ${example.id}:`, err);
-        }
-      }
-
-      return reportData;
-    },
-
-    /* -------- getUserDisplayName -------- */
-    getUserDisplayName(userId) {
-      // Tenta procurar pelo ID numérico
-      const numericId = Number(userId);
-      const member = Number.isNaN(numericId)
-        ? null
-        : this.members.find((m) => m.id === numericId);
-
-      if (member) {
-        return member.username || member.email || `User ${numericId}`;
-      }
-
-      // Se não encontrar e for string (ex.: "aggregated", "global" …)
-      if (Number.isNaN(numericId)) {
-        return userId;            // devolve a string original
-      }
-
-      // Último recurso
-      return `User ${numericId}`;
-    },
-
-    clearFilters() {
-      this.selectedDates = []
-      this.selectedUser = null
-      this.selectedLabel = null
-      this.reportData = null
-      this.hasSearched = false
-      this.showSnackbar('Filters cleared successfully', 'info', 'mdi-filter-remove')
-    },
-
     exportReport() {
-      if (!this.reportData || this.reportData.length === 0) return
+      if (!this.reportData || !this.reportData.items) return;
 
+      // 1. Prepara os dados para exportar
+      const data = this.reportData.items.map(item => ({
+        Annotator: item.annotator,
+        'Dataset Name': item.example,
+        Label: item.label,
+        Date: item.date,
+      }));
+
+      // 2. Cria a worksheet e o workbook
+      const worksheet = XLSX.utils.json_to_sheet(data);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Histórico de Anotações');
+
+      // 3. Gera o ficheiro Excel
+      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+
+      // 4. Faz download
+      const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
+      saveAs(blob, 'historico_anotacoes.xlsx');
+    },
+
+    getLabelColor(labelName: string): string {
+      const label = this.labels.find(l => l.text === labelName)
+      return label?.backgroundColor || '#ccc'
+    },
+    getLabelTextColor(labelName: string): string {
+      const label = this.labels.find(l => l.text === labelName)
+      return label?.textColor || '#000'
+    },
+    async loadLabels() {
       try {
-        this.exportLoading = true
-
-        // Generate timestamp for filename
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0]
-        const timeString = new Date().toLocaleTimeString('pt-PT', { 
-          hour: '2-digit', 
-          minute: '2-digit' 
-        }).replace(':', 'h')
-
-        // Enhanced CSV formatting
-        const headers = [
-          'Date',
-          'User', 
-          'Label',
-          'Dataset',
-          'Document',
-          'Annotation ID'
-        ]
-        
-        // Add BOM for proper UTF-8 encoding in Excel
-        const BOM = '\uFEFF'
-        
-        const csvRows = this.reportData.map(row => [
-          this.formatDateForExport(row.date),
-          this.getUserDisplayName(row.user),
-          row.label,
-          row.dataset,
-          this.cleanTextForCSV(row.document),
-          row.id
-        ])
-
-        // Create CSV content with proper formatting
-        const csvContent = BOM + [
-          headers.join(';'), // Use semicolon for better Excel compatibility
-          ...csvRows.map(row => 
-            row.map((cell, index) => {
-              // Special handling for date column (index 0)
-              if (index === 0) {
-                return cell // Don't wrap date in quotes for better Excel recognition
-              }
-              return `"${String(cell).replace(/"/g, '""')}"`
-            }).join(';')
-          )
-        ].join('\n')
-
-        // Enhanced filename
-        const projectName = this.project.name ? 
-          this.project.name.replace(/[^a-zA-Z0-9]/g, '_') : 'Dataset'
-        const filename = `Report_${projectName}_${timestamp}_${timeString}.csv`
-
-        // Create and download file
-        const blob = new Blob([csvContent], { 
-          type: 'text/csv;charset=utf-8;' 
-        })
-        const link = document.createElement('a')
-        const url = URL.createObjectURL(blob)
-        
-        link.setAttribute('href', url)
-        link.setAttribute('download', filename)
-        link.style.visibility = 'hidden'
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-        
-        // Clean up
-        URL.revokeObjectURL(url)
-
-        this.showSnackbar(
-          `Report exported successfully! File: ${filename}`,
-          'success',
-          'mdi-download'
-        )
-
+        const response = await this.$services.categoryType.list(this.$route.params.id)
+        this.labels = response.map((item: any) => ({
+          text: item.text,
+          backgroundColor: item.backgroundColor,
+          textColor: item.textColor
+        }))
       } catch (error) {
-        console.error('Export error:', error)
-        this.showSnackbar(
-          'Error exporting report. Please try again.',
-          'error',
-          'mdi-export-off',
-          6000
-        )
-      } finally {
-        this.exportLoading = false
+        console.error('Error loading labels:', error)
+        this.error = 'Failed to load labels'
       }
     },
 
-    formatDate(date) {
-      if (typeof date === 'string') {
-        date = new Date(date)
-      }
-      return date.toLocaleDateString('pt-PT')
-    },
+    clearDates () {
+      this.startDate = this.endDate = null
+    }
+  },
 
-    formatDateForExport(date) {
-      if (typeof date === 'string') {
-        date = new Date(date)
-      }
-      // Format as DD/MM/YYYY HH:MM for better CSV compatibility
-      const day = date.getDate().toString().padStart(2, '0')
-      const month = (date.getMonth() + 1).toString().padStart(2, '0')
-      const year = date.getFullYear()
-      const hours = date.getHours().toString().padStart(2, '0')
-      const minutes = date.getMinutes().toString().padStart(2, '0')
-      
-      return `${day}/${month}/${year} ${hours}:${minutes}`
-    },
-
-    cleanTextForCSV(text) {
-      if (!text) return ''
-      return text
-        .replace(/[\r\n]+/g, ' ') // Replace line breaks with spaces
-        .replace(/\s+/g, ' ')     // Replace multiple spaces with single space
-        .trim()
-    },
-
-    getLabelColor(labelText) {
-      const label = this.labels.find(l => l.text === labelText)
-      return label ? label.backgroundColor : 'primary'
-    },
-
-    getLabelTextColor(labelText) {
-      const label = this.labels.find(l => l.text === labelText)
-      return label ? label.textColor : 'white'
-    },
+  async created() {
+    await this.loadLabels()
+    await this.loadInitialData()
   }
-}
+})
 </script>
-
-<style scoped>
-.v-card {
-  margin-bottom: 16px;
-}
-
-.text-h6 {
-  font-size: 1.25rem !important;
-  font-weight: 500;
-}
-</style>
