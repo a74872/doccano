@@ -1,5 +1,24 @@
 <template>
   <v-container>
+    <!-- Adicionar o snackbar no topo do template -->
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      :timeout="5000"
+      top
+    >
+      {{ snackbar.text }}
+      <template v-slot:action="{ attrs }">
+        <v-btn
+          text
+          v-bind="attrs"
+          @click="snackbar.show = false"
+        >
+          Fechar
+        </v-btn>
+      </template>
+    </v-snackbar>
+
     <!-- action buttons -->
     <div class="d-flex align-center mb-4">
       <!-- Create -->
@@ -353,6 +372,11 @@ export default {
         { text: 'Username', value: 'username' },
         { text: 'Response Date', value: 'responseDate' }
       ],
+      snackbar: {
+        show: false,
+        text: '',
+        color: 'error'
+      },
     }
   },
   async mounted() {
@@ -441,36 +465,57 @@ export default {
     },
     async openAnswerDialog() {
       if (this.selected.length !== 1) return
+      const id = this.selected[0].id
+      let perspective = null
+      // Primeiro, buscar os detalhes da perspectiva
       try {
-        const id = this.selected[0].id
-        const perspective = this.perspectives.find(p => p.id === id)
-        
-        // Check if user has already responded
-        try {
-          await this.$repositories.perspective.getMyResponse(
-            this.projectId,
-            id
-          )
-          this.$toasted.error('You have already answered this perspective')
-          return
-        } catch (e) {
-          // No response found, continue
+        perspective = this.perspectives.find(p => p.id === id)
+        if (!perspective) {
+          throw new Error('Perspective not found')
         }
-
-        this.selectedPerspective = perspective
-        this.answers = {}
-        this.selectedPerspective.labels.forEach(label => {
-          this.answers[label.id] = {
-            string_value: null,
-            int_value: null,
-            choice_value: null
-          }
-        })
-        this.answerDialog = true
       } catch (e) {
-        console.error(e)
-        this.error = 'Unable to load perspective details.'
+        this.snackbar = {
+          show: true,
+          text: 'Erro ao carregar detalhes da perspectiva. Por favor, verifique sua conexão e tente novamente.',
+          color: 'error'
+        }
+        return
       }
+      // Agora, verificar se já respondeu
+      try {
+        await this.$repositories.perspective.getMyResponse(
+          this.projectId,
+          id
+        )
+        this.snackbar = {
+          show: true,
+          text: 'You already answered this perspective',
+          color: 'error'
+        }
+        return
+      } catch (e) {
+        // Se for erro de conexão (sem e.response), mostrar erro e não abrir diálogo
+        if (!e.response) {
+          this.snackbar = {
+            show: true,
+            text: 'Erro de conexão com o servidor. Por favor, tente novamente.',
+            color: 'error'
+          }
+          return
+        }
+        // Se for erro esperado (não respondeu), continua normalmente
+      }
+      // Se chegou aqui, pode abrir o diálogo normalmente
+      this.selectedPerspective = perspective
+      this.answers = {}
+      this.selectedPerspective.labels.forEach(label => {
+        this.answers[label.id] = {
+          string_value: null,
+          int_value: null,
+          choice_value: null
+        }
+      })
+      this.answerDialog = true
     },
     async submitAnswers() {
       if (!this.$refs.answerForm.validate()) return
@@ -504,10 +549,18 @@ export default {
         this.selectedPerspective = null
         await this.fetchPerspectives()
         await this.checkResponses()
-        this.$toasted.success('Answers submitted successfully')
+        this.snackbar = {
+          show: true,
+          text: 'Answers sent successfully!',
+          color: 'success'
+        }
       } catch (e) {
         console.error('Error submitting answers:', e)
-        this.error = 'Failed to submit answers. Please try again.'
+        this.snackbar = {
+          show: true,
+          text: 'Erro ao enviar respostas. Por favor, verifique a sua conexão e tente novamente.',
+          color: 'error'
+        }
       } finally {
         this.submitting = false
       }
@@ -515,17 +568,14 @@ export default {
     async openRespondedDialog() {
       if (this.selected.length !== 1) return
       try {
-        console.log('Abrindo dialog responded');
         this.respondedDialog = true
         this.loadingResponses = true
         const id = this.selected[0].id
         this.selectedPerspective = this.perspectives.find(p => p.id === id)
-        console.log('Selected perspective:', this.selectedPerspective)
         const responses = await this.$repositories.perspective.listResponses(
           this.projectId,
           id
         )
-        console.log('Respostas recebidas:', responses)
         let responseList = []
         if (responses && Array.isArray(responses.results)) {
           responseList = responses.results
@@ -543,10 +593,14 @@ export default {
           username: r.user,
           responseDate: this.formatDate(r.created_at)
         }))
-        console.log('Annotators responses:', this.annotatorsResponses)
       } catch (e) {
         console.error('Erro no openRespondedDialog:', e)
-        this.error = 'Unable to load annotators responses: ' + (e.message || 'Unknown error')
+        this.snackbar = {
+          show: true,
+          text: 'Erro ao carregar respostas dos anotadores. Por favor, verifique a sua conexão e tente novamente.',
+          color: 'error'
+        }
+        this.respondedDialog = false
       } finally {
         this.loadingResponses = false
       }
