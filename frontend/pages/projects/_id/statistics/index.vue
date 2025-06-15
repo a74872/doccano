@@ -367,6 +367,19 @@
         </v-alert>
       </v-col>
     </v-row>
+
+    <!-- Snackbar para erros -->
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      :timeout="5000"
+      top
+    >
+      {{ snackbar.text }}
+      <template v-slot:action="{ attrs }">
+        <v-btn text v-bind="attrs" @click="snackbar.show = false">Fechar</v-btn>
+      </template>
+    </v-snackbar>
   </v-container>
 </template>
 
@@ -497,6 +510,11 @@ export default Vue.extend({
         { text: 'Date', value: 'date' }
       ],
       examples: [] as { name: string }[],
+      snackbar: {
+        show: false,
+        text: '',
+        color: 'error'
+      },
     }
   },
 
@@ -737,7 +755,6 @@ export default Vue.extend({
 
       try {
         if (this.selectedReport === 'annotators') {
-          // "ALL" → undefined → devolve todos os membros
           this.reportData = await statisticsRepository.generateAnnotatorReport(
             projectId.toString(),
             { member: filters.member }
@@ -747,11 +764,25 @@ export default Vue.extend({
         } else if (this.selectedReport === 'perspectives') {
           this.reportData = await statisticsRepository.generatePerspectiveReport(projectId, filters)
         } else { /* annotationHistory */
-          this.reportData = await statisticsRepository.generateAnnotationHistoryReport(
-            projectId.toString(),
-            filters.example,
-            { member: filters.member }
-          )
+          try {
+            this.reportData = await statisticsRepository.generateAnnotationHistoryReport(
+              projectId.toString(),
+              filters.example,
+              { member: filters.member }
+            )
+          } catch (error: any) {
+            if (!error.response || error.message?.includes('timeout') || error.message?.includes('Network Error')) {
+              this.snackbar = {
+                show: true,
+                text: 'Erro de conexão com o servidor. Por favor, tente novamente mais tarde.',
+                color: 'error'
+              }
+              this.reportData = null
+              this.loading = false
+              return
+            }
+            throw error
+          }
         }
 
         if (!this.reportData?.items?.length) {
@@ -761,12 +792,25 @@ export default Vue.extend({
 
       } catch (error: any) {
         console.error('API-error:', error)
+        if (
+          this.selectedReport === 'annotationHistory' &&
+          (!error.response || error.message?.includes('timeout') || error.message?.includes('Network Error') || (error.response?.status >= 500 && error.response?.status < 600))
+        ) {
+          this.snackbar = {
+            show: true,
+            text: 'Erro de conexão com o servidor. Por favor, tente novamente mais tarde.',
+            color: 'error'
+          }
+          this.reportData = null
+          this.loading = false
+          return
+        }
         if (error.response?.status === 500) {
           this.error = 'O servidor encontrou um erro. Tente mais tarde.'
         } else if (error.response?.status === 404) {
           this.error = 'Dados não encontrados para estes filtros.'
         } else {
-          this.error = error.response?.data?.detail || error.message || 'Erro ao gerar relatório'
+          this.error = 'Erro ao gerar relatório. Por favor, tente novamente.'
         }
         this.reportData = null
       } finally {
@@ -775,7 +819,16 @@ export default Vue.extend({
     },
 
     exportReport() {
-      if (!this.reportData || !this.reportData.items) return;
+      if (!this.reportData || !this.reportData.items) {
+        if (this.selectedReport === 'annotationHistory') {
+          this.snackbar = {
+            show: true,
+            text: 'Não há dados para exportar. Por favor, gere um relatório primeiro.',
+            color: 'error'
+          }
+        }
+        return;
+      }
 
       // 1. Prepara os dados para exportar
       const data = this.reportData.items.map(item => ({
