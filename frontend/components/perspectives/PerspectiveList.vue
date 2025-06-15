@@ -97,27 +97,85 @@
       {{ error }}
     </v-alert>
 
-    <!-- confirm delete dialog -->
-    <v-dialog v-model="confirmDialog" max-width="480">
-      <v-card>
-        <v-card-title class="headline d-flex align-center">
-          <v-icon left color="error">mdi-delete</v-icon>
-          Delete confirmation
-          <v-chip small color="error" class="ml-2">{{ selected.length }} item(s)</v-chip>
+    <!-- IMPROVED confirm delete dialog -->
+    <v-dialog v-model="confirmDialog" max-width="520" persistent>
+      <v-card class="delete-dialog-card">
+        <!-- Enhanced Header -->
+        <v-card-title class="delete-dialog-header pa-0">
+          <div class="delete-header-content">
+            <div class="delete-icon-container">
+              <v-icon size="28" color="white">mdi-delete-alert</v-icon>
+            </div>
+            <div class="delete-title-section">
+              <h3 class="delete-title">Confirm Deletion</h3>
+              <div class="delete-subtitle">
+                {{ selected.length }} {{ selected.length === 1 ? 'perspective' : 'perspectives' }} selected
+              </div>
+            </div>
+          </div>
         </v-card-title>
-        <v-card-text>
-          Are you sure you want to delete the following perspectives?
-          <ul class="pl-4 mt-3">
-            <li v-for="item in selected" :key="item.id" class="mb-1">{{ item.title }}</li>
-          </ul>
-          <v-alert type="warning" dense class="mt-4" border="left" colored-border>
-            This action cannot be undone.
-          </v-alert>
+
+        <!-- Enhanced Content -->
+        <v-card-text class="delete-dialog-content">
+          <div class="delete-message">
+            <p class="mb-3">You are about to permanently delete the following {{ selected.length === 1 ? 'perspective' : 'perspectives' }}:</p>
+
+            <!-- Enhanced list with better styling -->
+            <div class="perspectives-list">
+              <div
+                v-for="(item, index) in selected"
+                :key="item.id"
+                class="perspective-item"
+                :class="{ 'mb-2': index < selected.length - 1 }"
+              >
+                <div class="perspective-item-content">
+                  <v-icon small color="error" class="mr-2">mdi-file-document</v-icon>
+                  <span class="perspective-name">{{ item.title }}</span>
+                  <v-chip x-small color="grey lighten-2" class="ml-2">
+                    {{ item.labels?.length || 0 }} {{ item.labels?.length === 1 ? 'label' : 'labels' }}
+                  </v-chip>
+                </div>
+              </div>
+            </div>
+
+            <!-- Enhanced warning -->
+            <v-alert
+              type="error"
+              dense
+              class="mt-4 delete-warning"
+              border="left"
+              colored-border
+              icon="mdi-alert-circle"
+            >
+              <div class="warning-content">
+                <strong>This action cannot be undone!</strong>
+                <br>
+                <small>All associated data will be permanently removed.</small>
+              </div>
+            </v-alert>
+          </div>
         </v-card-text>
-        <v-card-actions>
+
+        <!-- Enhanced Actions -->
+        <v-card-actions class="delete-dialog-actions">
           <v-spacer></v-spacer>
-          <v-btn text color="grey" @click="confirmDialog = false">Cancel</v-btn>
-          <v-btn text color="primary" @click="deleteSelectedConfirmed">Confirm</v-btn>
+          <v-btn
+            text
+            color="grey darken-1"
+            class="cancel-btn"
+            @click="cancelDelete"
+          >
+            <v-icon left small>mdi-close</v-icon>
+            Cancel
+          </v-btn>
+          <v-btn
+            color="error"
+            class="confirm-delete-btn"
+            @click="deleteSelectedConfirmed"
+          >
+            <v-icon left small>mdi-delete</v-icon>
+            Delete {{ selected.length === 1 ? 'Perspective' : 'Perspectives' }}
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -165,6 +223,21 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- snackbar para mensagens de sucesso/erro -->
+    <v-snackbar
+      v-model="snackbar.visible"
+      :color="snackbar.color"
+      top
+      timeout="4000"
+    >
+      {{ snackbar.text }}
+      <template #action="{ attrs }">
+        <v-btn text v-bind="attrs" @click="snackbar.visible = false">
+          Close
+        </v-btn>
+      </template>
+    </v-snackbar>
   </v-container>
 </template>
 
@@ -185,7 +258,12 @@ export default {
         { text: 'Labels', value: 'labelsCol', sortable: false },
         { text: 'Created By', value: 'created_by' },
         { text: 'Created At', value: 'created_at_fmt' }
-      ]
+      ],
+      snackbar: {
+        visible: false,
+        text: '',
+        color: 'success'
+      }
     }
   },
   async mounted() {
@@ -193,6 +271,11 @@ export default {
     await this.fetchPerspectives()
   },
   methods: {
+    showSnack(text, color = 'success') {
+      this.snackbar.text = text
+      this.snackbar.color = color
+      this.snackbar.visible = true
+    },
     openEditDialog () {
       if (this.selected.length !== 1) return
       // navega para página de edição (ou abre um diálogo) – ajuste conforme tiver
@@ -234,6 +317,7 @@ export default {
         this.perspectives = this.perspectives.filter(row => !this.selected.includes(row))
         this.selected = []
         this.confirmDialog = false
+        this.showSnack(`Perspective${this.selected.length > 1 ? 's' : ''} deleted successfully`)
       } catch (e) {
         console.error(e)
         this.error = 'Deletion failed.'
@@ -253,6 +337,10 @@ export default {
     },
     formatDate(date) {
       return date ? new Date(date).toLocaleString('pt-PT') : '—'
+    },
+    cancelDelete() {
+      this.confirmDialog = false
+      this.showSnack('Perspective deletion cancelled', 'error')
     }
   }
 }
@@ -344,5 +432,143 @@ export default {
   display: flex;
   justify-content: space-between;
   margin-bottom: 12px;
+}
+.detail-label {
+  font-weight: 600;
+  color: #555;
+}
+
+/* NEW ENHANCED DELETE DIALOG STYLES */
+.delete-dialog-card {
+  border-radius: 12px !important;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12) !important;
+}
+
+.delete-dialog-header {
+  background: linear-gradient(135deg, #d32f2f 0%, #f44336 100%);
+  color: white;
+}
+
+.delete-header-content {
+  display: flex;
+  align-items: center;
+  padding: 20px 24px;
+  width: 100%;
+}
+
+.delete-icon-container {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 16px;
+  backdrop-filter: blur(10px);
+}
+
+.delete-title-section {
+  flex: 1;
+}
+
+.delete-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: white;
+  line-height: 1.2;
+}
+
+.delete-subtitle {
+  font-size: 0.875rem;
+  opacity: 0.9;
+  margin-top: 4px;
+  font-weight: 400;
+}
+
+.delete-dialog-content {
+  padding: 24px !important;
+  background: #fafafa;
+}
+
+.delete-message {
+  color: #424242;
+  line-height: 1.5;
+}
+
+.perspectives-list {
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid #e0e0e0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.perspective-item {
+  transition: all 0.2s ease;
+}
+
+.perspective-item:hover {
+  transform: translateX(4px);
+}
+
+.perspective-item-content {
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.perspective-item:last-child .perspective-item-content {
+  border-bottom: none;
+}
+
+.perspective-name {
+  font-weight: 500;
+  color: #424242;
+  flex: 1;
+}
+
+.delete-warning {
+  border-radius: 8px !important;
+  background: #ffebee !important;
+}
+
+.warning-content {
+  line-height: 1.4;
+}
+
+.delete-dialog-actions {
+  padding: 16px 24px 24px 24px !important;
+  background: white;
+}
+
+.cancel-btn {
+  text-transform: none;
+  font-weight: 500;
+  padding: 8px 20px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.cancel-btn:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.confirm-delete-btn {
+  text-transform: none;
+  font-weight: 600;
+  padding: 8px 20px;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(211, 47, 47, 0.3);
+  transition: all 0.2s ease;
+}
+
+.confirm-delete-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(211, 47, 47, 0.4);
 }
 </style>
