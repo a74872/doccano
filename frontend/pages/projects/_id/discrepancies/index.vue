@@ -187,6 +187,19 @@
       </v-card>
     </v-dialog>
 
+    <!-- Snackbar para erros -->
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      :timeout="5000"
+      top
+    >
+      {{ snackbar.text }}
+      <template v-slot:action="{ attrs }">
+        <v-btn text v-bind="attrs" @click="snackbar.show = false">Fechar</v-btn>
+      </template>
+    </v-snackbar>
+
   </v-card>
 </template>
 
@@ -243,7 +256,12 @@ export default Vue.extend({
       verifyRows   : [] as Array<{user:string,label:string,color:string}>,
       verifyMsg    : '',
       dialogChat : false,
-      chatExample: null as ExampleDTO|null
+      chatExample: null as ExampleDTO|null,
+      snackbar: {
+        show: false,
+        text: '',
+        color: 'error'
+      },
     }
   },
 
@@ -391,32 +409,37 @@ export default Vue.extend({
 
     async openStats({ example }: { example: ExampleDTO }) {
       this.stats = []
+      try {
+        const dist = await this.$repositories.metrics
+          .fetchCategoryDistribution(this.projectId, { example: example.id })
 
-      const dist = await this.$repositories.metrics
-        .fetchCategoryDistribution(this.projectId, { example: example.id })
+        const sum: Record<string, number> = {}
+        for (const user in dist) {
+          for (const lbl in dist[user]) {
+            sum[lbl] = (sum[lbl] || 0) + dist[user][lbl]
+          }
+        }
 
-      const sum: Record<string, number> = {}
-      for (const user in dist) {
-        for (const lbl in dist[user]) {
-          sum[lbl] = (sum[lbl] || 0) + dist[user][lbl]
+        const total = Object.values(sum).reduce((a, b) => a + b, 0)
+
+        this.stats = this.labels
+          .filter(l => sum[l.text])
+          .map(l => ({
+            ...l,
+            count: sum[l.text],
+            percent: ((sum[l.text] / total) * 100).toFixed(1)
+          }))
+          .sort((a, b) => b.count - a.count)
+
+        this.dialogStats = true
+      } catch (e) {
+        this.snackbar = {
+          show: true,
+          text: 'Erro ao carregar as labels usadas. Por favor, verifique a sua conexão e tente novamente.',
+          color: 'error'
         }
       }
-
-      const total = Object.values(sum).reduce((a, b) => a + b, 0)
-
-      this.stats = this.labels
-        .filter(l => sum[l.text])
-        .map(l => ({
-          ...l,
-          count: sum[l.text],
-          percent: ((sum[l.text] / total) * 100).toFixed(1)
-        }))
-        .sort((a, b) => b.count - a.count)
-
-      this.dialogStats = true
     },
-
-
 
     async openVerify({ example }: { example: ExampleDTO }) {
       const dist = await this.$repositories.metrics
@@ -431,7 +454,7 @@ export default Vue.extend({
         // 1) maior contagem
         const max  = Math.max(...pairs.map(([, c]) => c))
 
-        // 2) todas as labels que têm a contagem “max”
+        // 2) todas as labels que têm a contagem "max"
         const top  = pairs.filter(([, c]) => c === max)
 
         // 3) escolha de visual:
