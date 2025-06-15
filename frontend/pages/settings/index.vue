@@ -1,5 +1,18 @@
 <template>
   <v-card>
+    <!-- Snackbar para erros -->
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      :timeout="5000"
+      top
+    >
+      {{ snackbar.text }}
+      <template v-slot:action="{ attrs }">
+        <v-btn text v-bind="attrs" @click="snackbar.show = false">Fechar</v-btn>
+      </template>
+    </v-snackbar>
+
     <v-card-title v-if="isStaff">
       <v-btn class="text-capitalize" color="primary" @click.stop="dialogCreate = true">
         {{ $t('generic.create') }}
@@ -77,7 +90,12 @@ export default Vue.extend({
       dialogEdit: false,
       users: new Page<User>(0, null, null, []),
       selected: [] as User[],
-      isLoading: false
+      isLoading: false,
+      snackbar: {
+        show: false,
+        text: '',
+        color: 'error'
+      },
     }
   },
 
@@ -108,6 +126,13 @@ export default Vue.extend({
         this.users = await this.$repositories.user.list(this.$route.query as SearchQueryData)
       } catch (error) {
         console.error('Erro ao buscar usuários:', error)
+        if (!error.response || error.message?.includes('timeout') || error.message?.includes('Network Error') || (error.response?.status >= 500 && error.response?.status < 600)) {
+          this.snackbar = {
+            show: true,
+            text: 'Erro de conexão com o servidor. Por favor, tente novamente mais tarde.',
+            color: 'error'
+          }
+        }
       }
       this.isLoading = false
     },
@@ -117,7 +142,17 @@ export default Vue.extend({
   },
   onSearch(search: string) {
     const query = { ...this.$route.query, search }
-    this.updateQuery({ query })
+    try {
+      this.updateQuery({ query })
+    } catch (error) {
+      if (!error.response || error.message?.includes('timeout') || error.message?.includes('Network Error') || (error.response?.status >= 500 && error.response?.status < 600)) {
+        this.snackbar = {
+          show: true,
+          text: 'Erro de conexão com o servidor. Por favor, tente novamente mais tarde.',
+          color: 'error'
+        }
+      }
+    }
   },
 
     onSave() {
