@@ -203,7 +203,7 @@ export default {
       this.$router.push(`/projects/${this.projectId}/perspective/add`)
     },
     chipColor(type) {
-      switch (type) {
+      switch (type) {  
         case 'int':
           return 'deep-purple lighten-2'
         case 'choice':
