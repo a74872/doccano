@@ -426,11 +426,11 @@ export default {
       try {
         for (const perspective of this.perspectives) {
           try {
-            await this.$repositories.perspective.getMyResponse(
+            const resp = await this.$repositories.perspective.getMyResponse(
               this.projectId,
               perspective.id
             )
-            perspective.hasResponse = true
+            perspective.hasResponse = !!(resp && Object.keys(resp).length > 0)
           } catch (e) {
             perspective.hasResponse = false
           }
@@ -451,7 +451,7 @@ export default {
             this.projectId,
             id
           )
-          this.$toast.error('You have already answered this perspective')
+          this.$toasted.error('You have already answered this perspective')
           return
         } catch (e) {
           // No response found, continue
@@ -477,9 +477,6 @@ export default {
       this.submitting = true
       this.error = null
       try {
-        // Log para depuração
-        console.log('selectedPerspective.labels:', this.selectedPerspective.labels)
-        // Montar o payload para múltiplas respostas, garantindo que cada resposta tem label_id
         const answers = this.selectedPerspective.labels.map(label => {
           const answer = this.answers[label.id]
           const obj = { label_id: label.id }
@@ -492,21 +489,24 @@ export default {
           }
           return obj
         })
-        console.log('answers payload:', answers)
         const payload = {
           perspective: this.selectedPerspective.id,
           answers
         }
-        console.log('payload final:', payload)
         await this.$repositories.perspective.createResponse(
           this.projectId,
           this.selectedPerspective.id,
           payload
         )
+        // Se chegou aqui, foi sucesso!
         this.answerDialog = false
-        this.$toast.success('Answers submitted successfully')
+        this.answers = {}
+        this.selectedPerspective = null
+        await this.fetchPerspectives()
+        await this.checkResponses()
+        this.$toasted.success('Answers submitted successfully')
       } catch (e) {
-        console.error(e)
+        console.error('Error submitting answers:', e)
         this.error = 'Failed to submit answers. Please try again.'
       } finally {
         this.submitting = false

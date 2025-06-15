@@ -35,11 +35,19 @@ export const apiPerspectiveRepository = {
   },
 
   async createResponse(projectId: number, perspectiveId: number, payload: any) {
-    const { data } = await axios.post(
-      `/v1/projects/${projectId}/perspective/${perspectiveId}/respond`,
-      payload
-    );
-    return data;
+    try {
+      const { data } = await axios.post(
+        `/v1/projects/${projectId}/perspective/${perspectiveId}/respond`,
+        payload
+      );
+      return data;
+    } catch (error) {
+      // If we get a 201 status, it means the response was created successfully
+      if (error.response?.status === 201) {
+        return error.response.data;
+      }
+      throw error;
+    }
   },
 
   async getMyResponse(projectId: number, perspectiveId: number) {

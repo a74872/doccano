@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "file-saver": "^2.0.5",
+    "vue-toasted": "^1.1.28",
     "xlsx": "^0.18.5"
   }
 }

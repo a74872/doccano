@@ -157,14 +157,32 @@ class PerspectiveResponseCreateView(generics.CreateAPIView):
     queryset = PerspectiveResponse.objects.all()
 
     def create(self, request, *args, **kwargs):
-        # Se answers está presente, processa múltiplas respostas
-        if isinstance(request.data.get('answers'), list):
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            responses = serializer.save()
-            return Response({'detail': 'Respostas criadas com sucesso.'}, status=status.HTTP_201_CREATED)
-        # Caso antigo: processa uma resposta só
-        return super().create(request, *args, **kwargs)
+        try:
+            # Se answers está presente, processa múltiplas respostas
+            if isinstance(request.data.get('answers'), list):
+                serializer = self.get_serializer(data=request.data)
+                serializer.is_valid(raise_exception=True)
+                responses = serializer.save()
+                # Serializa as respostas antes de retornar
+                serialized = PerspectiveResponseSerializer(responses, many=True).data
+                return Response(
+                    {'success': True, 'detail': 'Respostas criadas com sucesso.', 'responses': serialized},
+                    status=status.HTTP_201_CREATED
+                )
+            # Caso antigo: processa uma resposta só
+            return super().create(request, *args, **kwargs)
+        except Exception as e:
+            return Response(
+                {'detail': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    def get_queryset(self):
+        perspective_id = self.kwargs.get('perspective_id')
+        return PerspectiveResponse.objects.filter(
+            perspective_id=perspective_id,
+            user=self.request.user
+        )
 
 
 class PerspectiveResponseListView(generics.ListAPIView):
@@ -192,4 +210,11 @@ class UserPerspectiveResponseView(generics.ListAPIView):
             perspective_id=perspective_id,
             user=self.request.user
         )
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        if not queryset.exists():
+            return Response({}, status=status.HTTP_404_NOT_FOUND)
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data[0] if len(serializer.data) == 1 else serializer.data)
 
