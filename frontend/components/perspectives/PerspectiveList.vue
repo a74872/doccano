@@ -240,7 +240,7 @@
                 
                 <!-- String input -->
                 <v-text-field
-                  v-if="label.data_type === 'string'"
+                  v-if="label.data_type === 'string' && answers[label.id]"
                   v-model="answers[label.id].string_value"
                   label="Your answer"
                   :rules="[rules.required]"
@@ -250,7 +250,7 @@
 
                 <!-- Integer input -->
                 <v-text-field
-                  v-else-if="label.data_type === 'int'"
+                  v-else-if="label.data_type === 'int' && answers[label.id]"
                   v-model.number="answers[label.id].int_value"
                   type="number"
                   :label="`Enter a number between ${label.int_min} and ${label.int_max}`"
@@ -265,7 +265,7 @@
 
                 <!-- Choice input -->
                 <v-radio-group
-                  v-else-if="label.data_type === 'choice'"
+                  v-else-if="label.data_type === 'choice' && answers[label.id]"
                   v-model="answers[label.id].choice_value"
                   :rules="[rules.required]"
                 >
@@ -350,8 +350,7 @@ export default {
       loadingResponses: false,
       annotatorsResponses: [],
       respondedHeaders: [
-        { text: 'Username', value: 'username' },
-        { text: 'Response Date', value: 'responseDate' }
+        { text: 'Username', value: 'username' }
       ],
     }
   },
@@ -515,38 +514,30 @@ export default {
     async openRespondedDialog() {
       if (this.selected.length !== 1) return
       try {
-        console.log('Opening responded dialog...')
+        console.log('Abrindo dialog responded');
         this.respondedDialog = true
         this.loadingResponses = true
         const id = this.selected[0].id
-        console.log('Selected perspective ID:', id)
-        console.log('Project ID:', this.projectId)
-        
-        // Get all responses for this perspective
-        console.log('Fetching responses...')
+        this.selectedPerspective = this.perspectives.find(p => p.id === id)
+        console.log('Selected perspective:', this.selectedPerspective)
         const responses = await this.$repositories.perspective.listResponses(
           this.projectId,
           id
         )
-        console.log('Responses received:', responses)
-        const responseList = responses.results || responses // suporta ambos formatos
-
-        // Get all project members
-        console.log('Fetching members...')
-        const members = await this.$repositories.member.list(this.projectId.toString())
-        console.log('Members received:', members)
-        
-        // Preencher a tabela
-        this.annotatorsResponses = members.map(member => ({
-          username: member.username,
-          responseDate: responseList.find(r => r.user === member.username)?.created_at
-            ? new Date(responseList.find(r => r.user === member.username).created_at).toLocaleString()
-            : '—'
-        }));
-        console.log('Final annotators responses:', this.annotatorsResponses)
-
+        console.log('Respostas recebidas:', responses)
+        let responseList = []
+        if (responses && Array.isArray(responses.results)) {
+          responseList = responses.results
+        } else if (Array.isArray(responses)) {
+          responseList = responses
+        }
+        // Pegue só os nomes únicos dos usuários que responderam
+        const respondedUsers = Array.from(new Set(responseList.map(r => r.user)));
+        // Monte o array para a tabela
+        this.annotatorsResponses = respondedUsers.map(username => ({ username }))
+        console.log('Annotators responses:', this.annotatorsResponses)
       } catch (e) {
-        console.error('Error in openRespondedDialog:', e)
+        console.error('Erro no openRespondedDialog:', e)
         this.error = 'Unable to load annotators responses: ' + (e.message || 'Unknown error')
       } finally {
         this.loadingResponses = false
