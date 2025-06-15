@@ -31,7 +31,7 @@ export default Vue.extend({
     UsersList
   },
 
-  layout: 'settings',
+    layout: 'settings',
 
   middleware: ['check-auth', 'auth'],
 
