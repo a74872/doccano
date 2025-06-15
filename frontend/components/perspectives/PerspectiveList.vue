@@ -14,17 +14,17 @@
         Create new Perspective
       </v-btn>
 
-      <!-- Delete -->
+      <!-- Edit (moved next to Create) -->
       <v-btn
-        color="error"
-        class="ml-4 custom-btn"
+        color="success"
+        class="ml-4 custom-btn edit-btn"
         min-width="180"
         height="40"
-        :disabled="!selected.length"
-        @click="confirmDialog = true"
+        :disabled="selected.length !== 1"
+        @click="openEditDialog"
       >
-        <v-icon left class="mr-2">mdi-delete</v-icon>
-        Delete Perspective
+        <v-icon left class="mr-2">mdi-pencil</v-icon>
+        Edit
       </v-btn>
 
       <!-- View -->
@@ -40,17 +40,17 @@
         View Details
       </v-btn>
 
-      <!-- Edit (new) -->
+      <!-- Delete -->
       <v-btn
-        color="success"
+        color="error"
         class="ml-4 custom-btn"
         min-width="180"
         height="40"
-        :disabled="selected.length !== 1"
-        @click="openEditDialog"
+        :disabled="!selected.length"
+        @click="confirmDialog = true"
       >
-        <v-icon left class="mr-2">mdi-pencil</v-icon>
-        Edit
+        <v-icon left class="mr-2">mdi-delete</v-icon>
+        Delete Perspective
       </v-btn>
     </div>
 
@@ -267,16 +267,58 @@ export default {
   box-shadow: 0 3px 5px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
 }
+
 .custom-btn:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
 }
+
+/* Enhanced styling for the Edit button */
+.edit-btn {
+  background: linear-gradient(135deg, #4caf50 0%, #45a049 100%) !important;
+  border: none;
+  position: relative;
+  overflow: hidden;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.edit-btn:before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: left 0.5s;
+}
+
+.edit-btn:hover:before {
+  left: 100%;
+}
+
+.edit-btn:hover {
+  background: linear-gradient(135deg, #45a049 0%, #3d8b40 100%) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(76, 175, 80, 0.3);
+}
+
+.edit-btn:disabled {
+  background: #e0e0e0 !important;
+  color: #9e9e9e !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
 .empty-state {
   color: rgba(0, 0, 0, 0.38);
   font-style: italic;
   text-align: center;
   padding: 24px;
 }
+
 .details-content {
   padding: 20px;
   background: #f8f9fa;
@@ -288,9 +330,11 @@ export default {
   font-weight: 600;
   color: #555;
 }
+
 .detail-value {
   flex: 1;
 }
+
 .title-value {
   font-weight: 700;
   margin-left: 8px;
@@ -301,5 +345,4 @@ export default {
   justify-content: space-between;
   margin-bottom: 12px;
 }
-.detail-label {
-  font-weight
+</style>

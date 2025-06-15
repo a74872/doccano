@@ -26,13 +26,57 @@ class ExampleList(generics.ListCreateAPIView):
 
     def get_queryset(self):
         member = get_object_or_404(Member, project=self.project, user=self.request.user)
+        
+        # Admins see all examples
         if member.is_admin():
             return self.model.objects.filter(project=self.project)
 
-        queryset = self.model.objects.filter(project=self.project, assignments__assignee=self.request.user)
-        if self.project.random_order:
-            queryset = queryset.order_by("assignments__id")
-        return queryset
+        # For non-admins (annotators and annotation approvers)
+        base_queryset = self.model.objects.filter(project=self.project)
+        
+        # First, try to get examples assigned to this user
+        assigned_queryset = base_queryset.filter(assignments__assignee=self.request.user)
+        
+        # If user has specific assignments, return only those
+        if assigned_queryset.exists():
+            queryset = assigned_queryset
+            if self.project.random_order:
+                queryset = queryset.order_by("assignments__id")
+            return queryset
+        
+        # If no specific assignments exist, check the user's role
+        if member.is_annotator():
+            # For annotators without assignments, show all unassigned examples
+            # or all examples if no assignment system is being used
+            unassigned_queryset = base_queryset.filter(assignments__isnull=True)
+            
+            if unassigned_queryset.exists():
+                # Show unassigned examples
+                return unassigned_queryset
+            else:
+                # No assignment system in use, show all examples
+                return base_queryset
+                
+        elif member.is_annotation_approver():
+            # Annotation approvers can see examples that need approval
+            # This might include examples that have been annotated but not approved
+            
+            # Try to get examples that need approval
+            needs_approval_queryset = base_queryset.filter(
+                # Add your logic for examples needing approval
+                # For example: annotations__approved=False
+                # Or: status='pending_approval'
+            )
+            
+            if needs_approval_queryset.exists():
+                return needs_approval_queryset
+            else:
+                # Fallback: show all examples for approval review
+                return base_queryset
+        
+        # Default fallback: show all examples in project
+        # This ensures users always see something rather than empty results
+        return base_queryset
 
     def perform_create(self, serializer):
         serializer.save(project=self.project)

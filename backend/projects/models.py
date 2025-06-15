@@ -205,6 +205,12 @@ class Member(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     objects = MemberManager()
+    
+    def is_annotator(self):
+        return self.role.name == settings.ROLE_ANNOTATOR
+    
+    def is_annotation_approver(self):
+        return self.role.name == settings.ROLE_ANNOTATION_APPROVER
 
     def clean(self):
         members = self.__class__.objects.exclude(id=self.id)

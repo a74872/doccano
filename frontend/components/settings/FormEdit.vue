@@ -64,10 +64,10 @@ export default Vue.extend({
       isSuperuser: false,
       isStaff: false,
       errorMessage: '',
-      firstNameRules: [(v: string) => !!v || this.$t('First name')],
-      lastNameRules: [(v: string) => !!v || this.$t('Last name')],
+      firstNameRules: [(v: string) => !!v || this.$t('First name is required')],
+      lastNameRules: [(v: string) => !!v || this.$t('Last name is required')],
       usernameRules: [
-        (v: string) => !!v || this.$t('User name is required'),
+        (v: string) => !!v || this.$t('Username is required'),
         (v: string) => v.length <= 30 || this.$t('User name is too long')
       ],
       emailRules: [
