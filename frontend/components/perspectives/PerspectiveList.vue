@@ -350,7 +350,8 @@ export default {
       loadingResponses: false,
       annotatorsResponses: [],
       respondedHeaders: [
-        { text: 'Username', value: 'username' }
+        { text: 'Username', value: 'username' },
+        { text: 'Response Date', value: 'responseDate' }
       ],
     }
   },
@@ -531,10 +532,17 @@ export default {
         } else if (Array.isArray(responses)) {
           responseList = responses
         }
-        // Pegue só os nomes únicos dos usuários que responderam
-        const respondedUsers = Array.from(new Set(responseList.map(r => r.user)));
-        // Monte o array para a tabela
-        this.annotatorsResponses = respondedUsers.map(username => ({ username }))
+        // Agrupar por usuário e pegar a data mais recente
+        const userLatestResponse = {}
+        responseList.forEach(r => {
+          if (!userLatestResponse[r.user] || new Date(r.created_at) > new Date(userLatestResponse[r.user].created_at)) {
+            userLatestResponse[r.user] = r
+          }
+        })
+        this.annotatorsResponses = Object.values(userLatestResponse).map(r => ({
+          username: r.user,
+          responseDate: this.formatDate(r.created_at)
+        }))
         console.log('Annotators responses:', this.annotatorsResponses)
       } catch (e) {
         console.error('Erro no openRespondedDialog:', e)
