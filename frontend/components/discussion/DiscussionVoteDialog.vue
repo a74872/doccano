@@ -1,112 +1,133 @@
 <template>
-  <v-dialog :value="value" max-width="600" scrollable persistent
-            @input="$emit('input', $event)">
-    <v-card class="vote-dialog" elevation="12">
-      <!-- Header com gradiente sutil -->
-      <v-card-title class="vote-dialog-header pa-6">
-        <div class="header-content">
-          <v-icon class="mr-3" color="primary" size="28">mdi-vote</v-icon>
-          <div>
-            <h2 class="headline mb-1">Vote on a rule</h2>
-            <p class="subtitle-2 mb-0 text--secondary">Select a rule to cast your vote</p>
+  <div>
+    <v-dialog :value="value" max-width="600" scrollable persistent
+              @input="$emit('input', $event)">
+      <v-card class="vote-dialog" elevation="12">
+        <!-- Header com gradiente sutil -->
+        <v-card-title class="vote-dialog-header pa-6">
+          <div class="header-content">
+            <v-icon class="mr-3" color="primary" size="28">mdi-vote</v-icon>
+            <div>
+              <h2 class="headline mb-1">Vote on a rule</h2>
+              <p class="subtitle-2 mb-0 text--secondary">Select a rule to cast your vote</p>
+            </div>
           </div>
-        </div>
-        <v-btn icon large @click="$emit('input', false)" class="close-btn">
-          <v-icon>mdi-close</v-icon>
-        </v-btn>
-      </v-card-title>
+          <v-btn icon large @click="$emit('input', false)" class="close-btn">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </v-card-title>
 
-      <v-divider class="mx-6"/>
+        <v-divider class="mx-6"/>
 
-      <!-- Loading state melhorado -->
-      <v-card-text v-if="loading" class="loading-container">
-        <div class="text-center py-8">
-          <v-progress-circular
-            indeterminate
-            color="primary"
-            size="48"
-            class="mb-4"
-          />
-          <p class="subtitle-1 text--secondary">Loading rules...</p>
-        </div>
-      </v-card-text>
+        <!-- Loading state melhorado -->
+        <v-card-text v-if="loading" class="loading-container">
+          <div class="text-center py-8">
+            <v-progress-circular
+              indeterminate
+              color="primary"
+              size="48"
+              class="mb-4"
+            />
+            <p class="subtitle-1 text--secondary">Loading rules...</p>
+          </div>
+        </v-card-text>
 
-      <!-- Rules section -->
-      <v-card-text v-else class="rules-container pa-6">
-        <div v-if="rules.length === 0" class="empty-state text-center py-8">
-          <v-icon size="64" color="grey lighten-1" class="mb-4">mdi-clipboard-text-outline</v-icon>
-          <h3 class="subtitle-1 text--secondary">No rules available</h3>
-          <p class="body-2 text--disabled">There are no rules to vote on at this time.</p>
-        </div>
+        <!-- Rules section -->
+        <v-card-text v-else class="rules-container pa-6">
+          <div v-if="rules.length === 0" class="empty-state text-center py-8">
+            <v-icon size="64" color="grey lighten-1" class="mb-4">mdi-clipboard-text-outline</v-icon>
+            <h3 class="subtitle-1 text--secondary">No rules available</h3>
+            <p class="body-2 text--disabled">There are no rules to vote on at this time.</p>
+          </div>
 
-        <div v-else>
-          <h3 class="subtitle-1 mb-4 text--primary">Available Rules</h3>
-          <v-radio-group v-model="selectedRuleId" class="custom-radio-group">
-            <v-card
-              v-for="r in rules"
-              :key="r.id"
-              class="rule-card mb-3"
-              :class="{ 'rule-card--selected': selectedRuleId === r.id }"
-              @click="selectedRuleId = r.id"
-            >
-              <v-card-text class="py-3 px-4">
-                <div class="d-flex align-center">
-                  <v-radio
-                    :value="r.id"
-                    class="mr-3"
-                    color="primary"
-                    @click.stop
-                  />
-                  <div class="flex-grow-1">
-                    <h4 class="body-1 font-weight-medium mb-1">{{ r.title }}</h4>
-                    <p v-if="r.description" class="body-2 text--secondary mb-0">
-                      {{ r.description }}
-                    </p>
+          <div v-else>
+            <h3 class="subtitle-1 mb-4 text--primary">Available Rules</h3>
+            <v-radio-group v-model="selectedRuleId" class="custom-radio-group">
+              <v-card
+                v-for="r in rules"
+                :key="r.id"
+                class="rule-card mb-3"
+                :class="{ 'rule-card--selected': selectedRuleId === r.id }"
+                @click="selectedRuleId = r.id"
+              >
+                <v-card-text class="py-3 px-4">
+                  <div class="d-flex align-center">
+                    <v-radio
+                      :value="r.id"
+                      class="mr-3"
+                      color="primary"
+                      @click.stop
+                    />
+                    <div class="flex-grow-1">
+                      <h4 class="body-1 font-weight-medium mb-1">{{ r.title }}</h4>
+                      <p v-if="r.description" class="body-2 text--secondary mb-0">
+                        {{ r.description }}
+                      </p>
+                    </div>
+                    <v-chip
+                      v-if="isMyCurrentVote(r.id)"
+                      small
+                      color="success"
+                      text-color="white"
+                      class="ml-2"
+                    >
+                      <v-icon small left>mdi-check</v-icon>
+                      Your vote
+                    </v-chip>
                   </div>
-                  <v-chip
-                    v-if="isMyCurrentVote(r.id)"
-                    small
-                    color="success"
-                    text-color="white"
-                    class="ml-2"
-                  >
-                    <v-icon small left>mdi-check</v-icon>
-                    Your vote
-                  </v-chip>
-                </div>
-              </v-card-text>
-            </v-card>
-          </v-radio-group>
-        </div>
-      </v-card-text>
+                </v-card-text>
+              </v-card>
+            </v-radio-group>
+          </div>
+        </v-card-text>
 
-      <v-divider class="mx-6"/>
+        <v-divider class="mx-6"/>
 
-      <!-- Actions com melhor spacing -->
-      <v-card-actions class="pa-6">
-        <v-spacer/>
+        <!-- Actions com melhor spacing -->
+        <v-card-actions class="pa-6">
+          <v-spacer/>
+          <v-btn
+            text
+            large
+            @click="$emit('input', false)"
+            class="mr-3"
+          >
+            Cancel
+          </v-btn>
+          <v-btn
+            color="primary"
+            large
+            depressed
+            :disabled="!selectedRuleId"
+            :loading="submitting"
+            @click="submit"
+          >
+            <v-icon left>mdi-check</v-icon>
+            Submit Vote
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Snackbars -->
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      :timeout="4000"
+      bottom
+    >
+      {{ snackbar.message }}
+      <template v-slot:action="{ attrs }">
         <v-btn
           text
-          large
-          @click="$emit('input', false)"
-          class="mr-3"
+          v-bind="attrs"
+          @click="snackbar.show = false"
         >
-          Cancel
+          Close
         </v-btn>
-        <v-btn
-          color="primary"
-          large
-          depressed
-          :disabled="!selectedRuleId"
-          :loading="submitting"
-          @click="submit"
-        >
-          <v-icon left>mdi-check</v-icon>
-          Submit Vote
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+      </template>
+    </v-snackbar>
+  </div>
 </template>
 
 <script lang="ts">
@@ -126,7 +147,12 @@ export default Vue.extend({
       loading: false,
       submitting: false,
       selectedRuleId: '',
-      myVoteId: ''
+      myVoteId: '',
+      snackbar: {
+        show: false,
+        message: '',
+        color: 'success'
+      }
     }
   },
 
@@ -136,6 +162,12 @@ export default Vue.extend({
   },
 
   methods: {
+    showSnackbar(message: string, color: string = 'success') {
+      this.snackbar.message = message
+      this.snackbar.color = color
+      this.snackbar.show = true
+    },
+
     /* ───────────── lista regras ───────────── */
     async fetch () {
       this.loading = true
@@ -176,9 +208,11 @@ export default Vue.extend({
         if (this.myVoteId) {
           console.log('[PATCH]', `${url}${this.myVoteId}/`, body)
           await this.$axios.patch(`${url}${this.myVoteId}/`, body)
+          this.showSnackbar('Vote updated successfully!', 'success')
         } else {
           console.log('[POST]', url, body)
           await this.$axios.post(url, body)
+          this.showSnackbar('Vote submitted successfully!', 'success')
         }
 
         this.$emit('input', false)   // fecha pop-up
@@ -186,6 +220,7 @@ export default Vue.extend({
       } catch (error:any) {
         // mostra exactamente o que o DRF devolveu
         console.error('vote error:', error.response?.data || error)
+        this.showSnackbar('Error submitting vote. Please try again.', 'error')
       } finally {
         this.submitting = false
       }

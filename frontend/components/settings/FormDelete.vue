@@ -3,8 +3,8 @@
     title="Delete Settings"
     :agree-text="$t('generic.yes')"
     :cancel-text="$t('generic.cancel')"
-    @agree="$emit('remove')"
-    @cancel="$emit('cancel')"
+    @agree="onAgree"
+    @cancel="onCancel"
   >
     <template #content>
       Are you sure you want to delete the following settings?
@@ -33,6 +33,33 @@ export default Vue.extend({
       type: Array,
       default: () => []
     }
-  }
-})
+  },
+  data() {
+    return {
+      snackbar: {
+        show: false,
+        text: '',
+        color: 'success',
+        timeout: 3000
+      }
+    }
+  },
+  methods: {
+    onAgree() {
+      this.$emit('remove')
+      this.showSnack('Configuração deletada com sucesso!', 'success')
+    },
+    onCancel() {
+      this.$emit('cancel')
+      this.showSnack('Exclusão cancelada.', 'error')
+    },
+    showSnack(text, color = 'success') {
+      this.snackbar.text = text
+      this.snackbar.color = color
+      this.snackbar.show = true
+    }
+  },
+  <v-snackbar v-model="snackbar.show" :color="snackbar.color" :timeout="snackbar.timeout" top right>
+    {{ snackbar.text }}
+  </v-snackbar>
 </script>
