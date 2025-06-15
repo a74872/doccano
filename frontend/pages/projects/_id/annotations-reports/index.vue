@@ -343,7 +343,7 @@ export default {
         // Transform to select options
         this.userOptions = this.members.map(member => ({
           text: member.username || member.email || `User ${member.id}`,
-          value: String(member.id)          // <- garante string
+          value: String(member.id)
         }))
       } catch (error) {
         console.error('Error loading users:', error)
@@ -423,71 +423,47 @@ export default {
       }
     },
 
-    /* -------- transformExampleData -------- */
     async transformExampleData(examples) {
-      const reportData = [];
+      const reportData = []
 
       for (const example of examples) {
         try {
-          const distribution =
-            await this.$repositories.metrics.fetchCategoryDistribution(
-              this.projectId,
-              { example: example.id }
-            );
+          const distribution = await this.$repositories.metrics.fetchCategoryDistribution(
+            this.projectId,
+            { example: example.id }
+          )
 
           // Percorre cada utilizador
           for (const uidStr in distribution) {
-            // Converte se for numérico; caso contrário fica string
-            const uidNum = Number(uidStr);
-            const uid = Number.isNaN(uidNum) ? uidStr : uidNum;
-
-            // Filtro de utilizador (só compara se o uid for numérico)
-            if (
-              this.selectedUser !== null &&
-              !Number.isNaN(uidNum) &&
-              uid !== this.selectedUser
-            ) {
-              continue;
+            // Normalizar o ID do utilizador para comparação
+            const userIdForComparison = this.normalizeUserId(uidStr)
+            
+            // Filtro de utilizador - corrigir a comparação
+            if (this.selectedUser !== null && !this.matchesUserFilter(userIdForComparison, this.selectedUser)) {
+              continue
             }
 
-            const userLabels = distribution[uidStr];
+            const userLabels = distribution[uidStr]
 
             // Entradas por label
             for (const [labelName, count] of Object.entries(userLabels)) {
+              // Filtro de label
               if (this.selectedLabel && labelName !== this.selectedLabel) {
-                continue;
+                continue
               }
 
               for (let i = 0; i < count; i++) {
-                const annotationDate =
-                  example.createdAt ||
-                  new Date().toISOString().split("T")[0];
+                const annotationDate = example.createdAt || new Date().toISOString().split("T")[0]
 
-                // ----- filtro de datas -----
-                if (this.selectedDates && this.selectedDates.length > 0) {
-                  const exampleDate = new Date(annotationDate);
-                  const startDate = new Date(this.selectedDates[0]);
-
-                  if (this.selectedDates.length === 1) {
-                    const selDate = new Date(this.selectedDates[0]);
-                    if (
-                      exampleDate.toDateString() !== selDate.toDateString()
-                    ) {
-                      continue;
-                    }
-                  } else if (this.selectedDates.length === 2) {
-                    const endDate = new Date(this.selectedDates[1]);
-                    if (exampleDate < startDate || exampleDate > endDate) {
-                      continue;
-                    }
-                  }
+                // Filtro de datas - corrigir a lógica
+                if (!this.matchesDateFilter(annotationDate)) {
+                  continue
                 }
-                // ----- fim filtro de datas -----
 
                 reportData.push({
-                  id: `${example.id}-${uid}-${labelName}-${i}`,
+                  id: `${example.id}-${uidStr}-${labelName}-${i}`,
                   date: annotationDate,
-                  user: uid,                // pode ser number OU string
+                  user: userIdForComparison,
                   label: labelName,
                   dataset: this.project.name || "Dataset",
                   document: example.text
@@ -495,37 +471,90 @@ export default {
                       ? example.text.substring(0, 50) + "..."
                       : example.text
                     : example.filename || `Doc_${example.id}`,
-                });
+                })
               }
             }
           }
         } catch (err) {
-          console.error(`Error processing example ${example.id}:`, err);
+          console.error(`Error processing example ${example.id}:`, err)
         }
       }
 
-      return reportData;
+      return reportData
     },
 
-    /* -------- getUserDisplayName -------- */
+    normalizeUserId(userId) {
+      // Se for um número, converte para number
+      const numericId = Number(userId)
+      if (!Number.isNaN(numericId)) {
+        return numericId
+      }
+      // Se for string, mantém como string
+      return userId
+    },
+
+    matchesUserFilter(userIdFromData, selectedUserId) {
+      // Converter ambos para string para comparação consistente
+      const userIdStr = String(userIdFromData)
+      const selectedUserStr = String(selectedUserId)
+      
+      return userIdStr === selectedUserStr
+    },
+
+    matchesDateFilter(dateString) {
+      if (!this.selectedDates || this.selectedDates.length === 0) {
+        return true // Sem filtro de data, aceita tudo
+      }
+
+      try {
+        const exampleDate = new Date(dateString)
+        
+        if (this.selectedDates.length === 1) {
+          // Comparar apenas a data (ignorar hora)
+          const selectedDate = new Date(this.selectedDates[0])
+          return this.isSameDate(exampleDate, selectedDate)
+        } 
+        
+        if (this.selectedDates.length === 2) {
+          // Range de datas
+          const startDate = new Date(this.selectedDates[0])
+          const endDate = new Date(this.selectedDates[1])
+          
+          // Definir início do dia para startDate e fim do dia para endDate
+          startDate.setHours(0, 0, 0, 0)
+          endDate.setHours(23, 59, 59, 999)
+          
+          return exampleDate >= startDate && exampleDate <= endDate
+        }
+        
+        return true
+      } catch (error) {
+        console.error('Error in date filter:', error)
+        return true // Em caso de erro, não filtrar
+      }
+    },
+
+    isSameDate(date1, date2) {
+      return (
+        date1.getFullYear() === date2.getFullYear() &&
+        date1.getMonth() === date2.getMonth() &&
+        date1.getDate() === date2.getDate()
+      )
+    },
+
     getUserDisplayName(userId) {
-      // Tenta procurar pelo ID numérico
-      const numericId = Number(userId);
-      const member = Number.isNaN(numericId)
-        ? null
-        : this.members.find((m) => m.id === numericId);
-
-      if (member) {
-        return member.username || member.email || `User ${numericId}`;
+      // Primeiro, tentar encontrar por ID numérico
+      const numericId = Number(userId)
+      if (!Number.isNaN(numericId)) {
+        const member = this.members.find((m) => m.id === numericId)
+        if (member) {
+          return member.username || member.email || `User ${numericId}`
+        }
+        return `User ${numericId}`
       }
 
-      // Se não encontrar e for string (ex.: "aggregated", "global" …)
-      if (Number.isNaN(numericId)) {
-        return userId;            // devolve a string original
-      }
-
-      // Último recurso
-      return `User ${numericId}`;
+      // Se for string, retornar diretamente (para casos como "aggregated", etc.)
+      return String(userId)
     },
 
     clearFilters() {
@@ -538,10 +567,19 @@ export default {
     },
 
     exportReport() {
-      if (!this.reportData || this.reportData.length === 0) return
+      if (!this.reportData || this.reportData.length === 0) {
+        this.showSnackbar(
+          'No data to export. Generate a report first.',
+          'warning',
+          'mdi-alert'
+        )
+        return
+      }
 
       try {
         this.exportLoading = true
+
+        console.log('Exporting report with', this.reportData.length, 'records')
 
         // Generate timestamp for filename
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0]
@@ -586,10 +624,16 @@ export default {
           )
         ].join('\n')
 
-        // Enhanced filename
+        // Enhanced filename with filter info
         const projectName = this.project.name ? 
           this.project.name.replace(/[^a-zA-Z0-9]/g, '_') : 'Dataset'
-        const filename = `Report_${projectName}_${timestamp}_${timeString}.csv`
+        
+        let filterSuffix = ''
+        if (this.selectedUser || this.selectedLabel || (this.selectedDates && this.selectedDates.length > 0)) {
+          filterSuffix = '_filtered'
+        }
+        
+        const filename = `Report_${projectName}${filterSuffix}_${timestamp}_${timeString}.csv`
 
         // Create and download file
         const blob = new Blob([csvContent], { 
@@ -664,7 +708,7 @@ export default {
     getLabelTextColor(labelText) {
       const label = this.labels.find(l => l.text === labelText)
       return label ? label.textColor : 'white'
-    },
+    }
   }
 }
 </script>
