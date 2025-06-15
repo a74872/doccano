@@ -39,8 +39,8 @@
         >
           {{ $t('generic.delete') }}
         </v-btn>
-        <v-dialog v-model="dialogDelete">
-          <form-delete :selected="selected" @cancel="dialogDelete = false" @remove="remove" />
+        <v-dialog v-model="dialogDelete" max-width="400">
+          <form-delete :selected="selected" @cancel="onDeleteCancel" @remove="remove" />
         </v-dialog>
       </v-card-title>
 
@@ -188,10 +188,15 @@ export default Vue.extend({
         await this.$fetch();
         this.dialogDelete = false;
         this.selected = [];
+        this.showSnack('User deleted successfully', 'success');
         console.log("Dialog de deleção fechado e seleção limpa.");
       } catch (error) {
         console.error("Erro ao deletar usuários:", error);
       }
+    },
+    onDeleteCancel() {
+      this.dialogDelete = false;
+      this.showSnack('User deletion cancelled', 'error');
     }
   }
 })

@@ -116,7 +116,7 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn text color="grey" @click="confirmDialog = false">Cancel</v-btn>
+          <v-btn text color="grey" @click="cancelDelete">Cancel</v-btn>
           <v-btn text color="primary" @click="deleteSelectedConfirmed">Confirm</v-btn>
         </v-card-actions>
       </v-card>
@@ -165,6 +165,21 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- snackbar para mensagens de sucesso/erro -->
+    <v-snackbar
+      v-model="snackbar.visible"
+      :color="snackbar.color"
+      top
+      timeout="4000"
+    >
+      {{ snackbar.text }}
+      <template #action="{ attrs }">
+        <v-btn text v-bind="attrs" @click="snackbar.visible = false">
+          Close
+        </v-btn>
+      </template>
+    </v-snackbar>
   </v-container>
 </template>
 
@@ -184,7 +199,12 @@ export default {
         { text: 'Labels', value: 'labelsCol', sortable: false },
         { text: 'Created By', value: 'created_by' },
         { text: 'Created At', value: 'created_at_fmt' }
-      ]
+      ],
+      snackbar: {
+        visible: false,
+        text: '',
+        color: 'success'
+      }
     }
   },
   async mounted() {
@@ -192,6 +212,11 @@ export default {
     await this.fetchPerspectives()
   },
   methods: {
+    showSnack(text, color = 'success') {
+      this.snackbar.text = text
+      this.snackbar.color = color
+      this.snackbar.visible = true
+    },
     openEditDialog () {
       if (this.selected.length !== 1) return
       // navega para página de edição (ou abre um diálogo) – ajuste conforme tiver
@@ -233,6 +258,7 @@ export default {
         this.perspectives = this.perspectives.filter(row => !this.selected.includes(row))
         this.selected = []
         this.confirmDialog = false
+        this.showSnack(`Perspective${this.selected.length > 1 ? 's' : ''} deleted successfully`)
       } catch (e) {
         console.error(e)
         this.error = 'Deletion failed.'
@@ -252,6 +278,10 @@ export default {
     },
     formatDate(date) {
       return date ? new Date(date).toLocaleString('pt-PT') : '—'
+    },
+    cancelDelete() {
+      this.confirmDialog = false
+      this.showSnack('Perspective deletion cancelled', 'error')
     }
   }
 }
@@ -301,4 +331,6 @@ export default {
   margin-bottom: 12px;
 }
 .detail-label {
-  font-weight
+  font-weight: 600;
+  color: #555;
+}
