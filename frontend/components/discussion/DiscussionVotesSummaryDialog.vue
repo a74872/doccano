@@ -115,6 +115,10 @@ export default Vue.extend({
             percent: ((count / total) * 100).toFixed(1)
           }))
           .sort((a, b) => b.count - a.count)
+      } catch (error) {
+        if (!error.response || error.message?.includes('timeout') || error.message?.includes('Network Error') || (error.response?.status >= 500 && error.response?.status < 600)) {
+          this.$emit('votes-error')
+        }
       } finally { this.loading = false }
     }
   }

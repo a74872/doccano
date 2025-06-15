@@ -164,6 +164,7 @@
       :project-id="projectId"
       :example-id="exampleId"
       :discussion="current"
+      @votes-error="onVotesError"
     />
 
     <!-- ——— CONFIRMAR eliminação ——— -->
@@ -238,6 +239,18 @@
       </v-expansion-panel>
     </v-expansion-panels>
 
+    <!-- Snackbar para erros -->
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      :timeout="5000"
+      top
+    >
+      {{ snackbar.text }}
+      <template v-slot:action="{ attrs }">
+        <v-btn text v-bind="attrs" @click="snackbar.show = false">Fechar</v-btn>
+      </template>
+    </v-snackbar>
 
   </v-card>
 </template>
@@ -306,6 +319,11 @@ export default Vue.extend({
       unresolved: [] as any[],
       archived  : [] as any[],
       archivedOpen: null as number|null,
+      snackbar: {
+        show: false,
+        text: '',
+        color: 'error'
+      },
     }
   },
 
@@ -487,8 +505,15 @@ export default Vue.extend({
       } finally {
         this.isLoading = false
       }
-    }
+    },
 
+    onVotesError() {
+      this.snackbar = {
+        show: true,
+        text: 'Erro de conexão com o servidor. Por favor, tente novamente mais tarde.',
+        color: 'error'
+      }
+    },
 
   }
 })
