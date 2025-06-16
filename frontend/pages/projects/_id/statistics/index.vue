@@ -280,10 +280,21 @@
               color="secondary"
               large
               :disabled="!reportData"
-              @click="exportReport"
+              @click="showExportDialog = true"
             >
               Export&nbsp;Report
             </v-btn>
+
+            <export-report-dialog
+              v-model="showExportDialog"
+              :title="reportTitle.replace(/\\s+/g,'_').toLowerCase()"
+              :headers="activeSection==='annotators' ? annotatorHeaders
+                       : selectedReport==='disagreements' ? disagreementHeaders
+                       : selectedReport==='perspectives'   ? perspectiveHeaders
+                       : annotationHistoryHeaders"
+              :items="filteredItems"
+            />
+
           </v-col>
         </v-row>
 
@@ -360,13 +371,32 @@
     </v-expand-transition>
 
     <!-- ============================  ERROR ============================ -->
-    <v-row v-if="error">
+    <v-row v-if="errorKey || error">
       <v-col cols="12">
-        <v-alert type="error" border="left" colored-border elevation="2">
+        <!-- erro traduzido a partir da key -->
+        <v-alert
+          v-if="errorKey"
+          type="error"
+          border="left"
+          colored-border
+          elevation="2"
+        >
+          {{ $t(errorKey) }}
+        </v-alert>
+
+        <!-- fallback para mensagens literais -->
+        <v-alert
+          v-else
+          type="error"
+          border="left"
+          colored-border
+          elevation="2"
+        >
           {{ error }}
         </v-alert>
       </v-col>
     </v-row>
+
   </v-container>
 </template>
 
@@ -376,6 +406,7 @@ import { saveAs } from 'file-saver';
 
 import Vue from 'vue'
 import { mdiCalendarRange } from '@mdi/js'
+import ExportReportDialog from '~/components/statistics/ExportReportDialog.vue'
 import { Perspective } from '~/domain/models/perspective/perspective'
 import { APIStatisticsRepository } from '~/repositories/statistics/apiStatisticsRepository'
 
@@ -420,6 +451,8 @@ export default Vue.extend({
   layout: 'project',
   middleware: ['check-auth', 'auth', 'setCurrentProject'],
 
+  components: { ExportReportDialog },
+
   validate({ params }) {
     return /^\d+$/.test(params.id)
   },
@@ -427,6 +460,9 @@ export default Vue.extend({
   data() {
     return {
       icons: {calendar: mdiCalendarRange,},
+      showExportDialog: false,
+      error:    null as string | null,
+      errorKey: ''   as string,
       dateMenu  : false,
       startDate : null as string | null,
       endDate   : null as string | null,
@@ -489,7 +525,6 @@ export default Vue.extend({
       ],
       labels: [] as LabelItem[],
       projectId: 0,
-      error: null as string | null,
       annotationHistoryHeaders: [
         { text: 'Annotator', value: 'annotator' },
         { text: 'Dataset Name', value: 'example' },
@@ -759,17 +794,38 @@ export default Vue.extend({
           this.reportData = null
         }
 
-      } catch (error: any) {
-        console.error('API-error:', error)
-        if (error.response?.status === 500) {
-          this.error = 'O servidor encontrou um erro. Tente mais tarde.'
-        } else if (error.response?.status === 404) {
-          this.error = 'Dados não encontrados para estes filtros.'
-        } else {
-          this.error = error.response?.data?.detail || error.message || 'Erro ao gerar relatório'
-        }
-        this.reportData = null
-      } finally {
+      } catch (err: any) {
+      console.error('API-error:', err)
+
+      /* ------------ indisponível / timeout ------------ */
+      const status = err.response?.status
+      if (!err.response || [0, 502, 503, 504].includes(status)) {
+        this.errorKey = 'errors.serverUnavailable'   // usar a chave i18n
+        this.error    = null                         // limpa texto literal
+      }
+
+      /* ------------ 500 ------------ */
+      else if (status === 500) {
+        this.error    = 'O servidor encontrou um erro. Tente mais tarde.'
+        this.errorKey = ''
+      }
+
+      /* ------------ 404 ------------ */
+      else if (status === 404) {
+        this.error    = 'Dados não encontrados para estes filtros.'
+        this.errorKey = ''
+      }
+
+      /* ------------ outros ------------ */
+      else {
+        this.error    = err.response.data?.detail || err.message || 'Erro ao gerar relatório'
+        this.errorKey = ''
+      }
+
+      this.reportData = null
+
+
+    } finally {
         this.loading = false
       }
     },

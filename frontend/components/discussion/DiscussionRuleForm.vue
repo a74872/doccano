@@ -1,153 +1,199 @@
 <template>
-  <v-dialog
-    :value="show"
-    max-width="600"
-    scrollable
-    persistent
-    @input="$emit('update:show', $event)"
-  >
-    <v-card class="elevation-8">
-      <v-card-title class="primary white--text pa-6">
-        <v-icon left color="white" class="mr-3">mdi-rule</v-icon>
-        <span class="text-h5 font-weight-light">Create New Rules</span>
-        <v-spacer/>
-        <v-btn
-          icon
-          color="white"
-          @click="$emit('update:show', false)"
-        >
-          <v-icon>mdi-close</v-icon>
-        </v-btn>
-      </v-card-title>
-
-      <!-- Content -->
-      <v-card-text class="pa-6">
-        <div class="mb-4">
-          <p class="text-body-1 grey--text text--darken-1 mb-3">
-            Define the rules that will be used for voting on this discussion. Each rule should be clear and concise.
-          </p>
-        </div>
-
-        <!-- Rules list -->
-        <v-slide-y-transition group appear>
-          <v-card
-            v-for="(rule, idx) in rules"
-            :key="idx"
-            outlined
-            class="mb-3 rule-card"
-            :class="{ 'error-border': hasError(idx) }"
-          >
-            <v-card-text class="pa-4">
-              <div class="d-flex align-center">
-                <div class="rule-number mr-3">
-                  <v-avatar size="28" color="primary" class="white--text">
-                    <span class="caption font-weight-bold">{{ idx + 1 }}</span>
-                  </v-avatar>
-                </div>
-                
-                <v-text-field
-                  v-model="rules[idx]"
-                  outlined
-                  dense
-                  hide-details="auto"
-                  :counter="60"
-                  label="Rule title"
-                  placeholder="Enter a clear and concise rule..."
-                  class="flex-grow-1"
-                  :rules="getRuleValidation(idx)"
-                  :error="hasError(idx)"
-                  clearable
-                />
-                
-                <v-btn
-                  v-if="rules.length > 1"
-                  icon
-                  color="error"
-                  class="ml-3"
-                  @click="remove(idx)"
-                >
-                  <v-icon>mdi-delete-outline</v-icon>
-                </v-btn>
-              </div>
-
-              <!-- Error message -->
-              <v-expand-transition>
-                <div v-if="hasError(idx)" class="mt-2">
-                  <v-alert
-                    dense
-                    text
-                    type="error"
-                    class="mb-0"
-                  >
-                    {{ getErrorMessage(idx) }}
-                  </v-alert>
-                </div>
-              </v-expand-transition>
-            </v-card-text>
-          </v-card>
-        </v-slide-y-transition>
-
-        <!-- Add rule button -->
-        <div class="text-center mt-4">
+  <div>
+    <v-dialog
+      :value="show"
+      max-width="600"
+      scrollable
+      persistent
+      @input="$emit('update:show', $event)"
+    >
+      <v-card class="elevation-8">
+        <v-card-title class="primary white--text pa-6">
+          <v-icon left color="white" class="mr-3">mdi-rule</v-icon>
+          <span class="text-h5 font-weight-light">Create New Rules</span>
+          <v-spacer/>
           <v-btn
-            outlined
-            color="primary"
-            class="px-6"
-            :disabled="rules.length >= 5"
-            @click="addField"
+            icon
+            color="white"
+            @click="$emit('update:show', false)"
           >
-            <v-icon left>mdi-plus</v-icon>
-            Add Another Rule
+            <v-icon>mdi-close</v-icon>
           </v-btn>
-        </div>
+        </v-card-title>
 
-        <!-- Info section -->
-        <v-card
-          flat
-          color="blue-grey lighten-5"
-          class="mt-4 pa-4"
-        >
-          <div class="d-flex align-center">
-            <v-icon color="blue-grey" class="mr-2">mdi-information-outline</v-icon>
-            <div>
-              <p class="mb-1 caption font-weight-medium blue-grey--text text--darken-2">
-                Guidelines:
-              </p>
-              <ul class="caption blue-grey--text text--darken-1 mb-0 ml-4">
-                <li>You can create up to 5 rules maximum</li>
-                <li>Each rule must be unique and non-empty</li>
-                <li>Rules should be clear and actionable</li>
-              </ul>
-            </div>
+        <!-- Content -->
+        <v-card-text class="pa-6">
+          <div class="mb-4">
+            <p class="text-body-1 grey--text text--darken-1 mb-3">
+              Define the rules that will be used for voting on this discussion. Each rule should be clear and concise.
+            </p>
           </div>
-        </v-card>
-      </v-card-text>
 
-      <!-- Actions -->
-      <v-divider/>
-      <v-card-actions class="pa-6">
-        <v-spacer/>
+          <!-- Rules list -->
+          <v-slide-y-transition group appear>
+            <v-card
+              v-for="(rule, idx) in rules"
+              :key="idx"
+              outlined
+              class="mb-3 rule-card"
+              :class="{ 'error-border': hasError(idx) }"
+            >
+              <v-card-text class="pa-4">
+                <div class="d-flex align-center">
+                  <div class="rule-number mr-3">
+                    <v-avatar size="28" color="primary" class="white--text">
+                      <span class="caption font-weight-bold">{{ idx + 1 }}</span>
+                    </v-avatar>
+                  </div>
+                  
+                  <v-text-field
+                    v-model="rules[idx]"
+                    outlined
+                    dense
+                    hide-details="auto"
+                    :counter="60"
+                    label="Rule title"
+                    placeholder="Enter a clear and concise rule..."
+                    class="flex-grow-1"
+                    :rules="getRuleValidation(idx)"
+                    :error="hasError(idx)"
+                    clearable
+                  />
+                  
+                  <v-btn
+                    v-if="rules.length > 1"
+                    icon
+                    color="error"
+                    class="ml-3"
+                    @click="remove(idx)"
+                  >
+                    <v-icon>mdi-delete-outline</v-icon>
+                  </v-btn>
+                </div>
+
+                <!-- Error message -->
+                <v-expand-transition>
+                  <div v-if="hasError(idx)" class="mt-2">
+                    <v-alert
+                      dense
+                      text
+                      type="error"
+                      class="mb-0"
+                    >
+                      {{ getErrorMessage(idx) }}
+                    </v-alert>
+                  </div>
+                </v-expand-transition>
+              </v-card-text>
+            </v-card>
+          </v-slide-y-transition>
+
+          <!-- Add rule button -->
+          <div class="text-center mt-4">
+            <v-btn
+              outlined
+              color="primary"
+              class="px-6"
+              :disabled="rules.length >= 5"
+              @click="addField"
+            >
+              <v-icon left>mdi-plus</v-icon>
+              Add Another Rule
+            </v-btn>
+          </div>
+
+          <!-- Info section -->
+          <v-card
+            flat
+            color="blue-grey lighten-5"
+            class="mt-4 pa-4"
+          >
+            <div class="d-flex align-center">
+              <v-icon color="blue-grey" class="mr-2">mdi-information-outline</v-icon>
+              <div>
+                <p class="mb-1 caption font-weight-medium blue-grey--text text--darken-2">
+                  Guidelines:
+                </p>
+                <ul class="caption blue-grey--text text--darken-1 mb-0 ml-4">
+                  <li>You can create up to 5 rules maximum</li>
+                  <li>Each rule must be unique and non-empty</li>
+                  <li>Rules should be clear and actionable</li>
+                </ul>
+              </div>
+            </div>
+          </v-card>
+        </v-card-text>
+
+        <!-- Actions -->
+        <v-divider/>
+        <v-card-actions class="pa-6">
+          <v-spacer/>
+          <v-btn
+            text
+            color="grey darken-1"
+            class="px-6"
+            @click="cancel"
+          >
+            Cancel
+          </v-btn>
+          <v-btn
+            color="primary"
+            depressed
+            class="px-8"
+            :disabled="!canSave"
+            @click="save"
+          >
+            <v-icon left small>mdi-content-save</v-icon>
+            Save Rules
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Success Snackbar -->
+    <v-snackbar
+      v-model="showSuccessSnackbar"
+      color="success"
+      timeout="4000"
+      bottom
+      right
+    >
+      <v-icon left color="white">mdi-check-circle</v-icon>
+      Rules created successfully!
+      <template v-slot:action="{ attrs }">
         <v-btn
+          color="white"
           text
-          color="grey darken-1"
-          class="px-6"
-          @click="cancel"
+          v-bind="attrs"
+          @click="showSuccessSnackbar = false"
         >
-          Cancel
+          Close
         </v-btn>
+      </template>
+    </v-snackbar>
+
+    <!-- Add Rule Success Snackbar -->
+    <v-snackbar
+      v-model="showAddRuleSnackbar"
+      color="info"
+      timeout="3000"
+      bottom
+      right
+    >
+      <v-icon left color="white">mdi-plus-circle</v-icon>
+      New rule added!
+      <template v-slot:action="{ attrs }">
         <v-btn
-          color="primary"
-          depressed
-          class="px-8"
-          :disabled="!canSave"
-          @click="save"
+          color="white"
+          text
+          v-bind="attrs"
+          @click="showAddRuleSnackbar = false"
         >
-          <v-icon left small>mdi-content-save</v-icon>
-          Save Rules
+          Close
         </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+      </template>
+    </v-snackbar>
+  </div>
 </template>
 
 <script lang="ts">
@@ -161,7 +207,10 @@ export default Vue.extend({
   },
   data () {
     return {
-      rules: this.ruleTitle ? [this.ruleTitle] : ['']
+      rules: this.ruleTitle ? [this.ruleTitle] : [''],
+      showSuccessSnackbar: false,
+      showErrorSnackbar: false,
+      showAddRuleSnackbar: false
     }
   },
   computed: {
@@ -185,6 +234,7 @@ export default Vue.extend({
     addField () {
       if (this.rules.length < 5) {
         this.rules.push('')
+        this.showAddRuleSnackbar = true
       }
     },
     
@@ -202,6 +252,16 @@ export default Vue.extend({
       this.$emit('save', titles)
       this.$emit('update:show', false)
       this.rules = ['']
+    },
+
+    // Method to show success snackbar (call from parent component)
+    showSuccess () {
+      this.showSuccessSnackbar = true
+    },
+
+    // Method to show error snackbar (call from parent component)
+    showError () {
+      this.showErrorSnackbar = true
     },
 
     hasDuplicates (): boolean {
