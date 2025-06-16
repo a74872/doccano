@@ -190,8 +190,8 @@
       v-model="snackbar.show"
       :color="snackbar.color"
       :timeout="snackbar.timeout"
-      bottom
-      right
+      top
+      centered
     >
       <v-icon left dark>{{ snackbar.icon }}</v-icon>
       {{ snackbar.message }}
@@ -240,6 +240,9 @@ export default {
       
       // State
       hasSearched: false,
+
+      userIdToUsernameMap: {}, // ID → username
+      usernameToIdMap: {},     // username → ID
       
       // Snackbar
       snackbar: {
@@ -333,26 +336,42 @@ export default {
       }
     },
 
+   
+    // 1. In loadUsers(), keep IDs as their original type
     async loadUsers() {
       try {
         this.loadingUsers = true
         
-        // Use the same API call as in the other component
         this.members = await this.$repositories.member.list(this.projectId)
         
-        // Transform to select options
-        this.userOptions = this.members.map(member => ({
-          text: member.username || member.email || `User ${member.id}`,
-          value: String(member.id)
-        }))
+        // Criar mapa de ID para username para lookup rápido
+        this.userIdToUsernameMap = {}
+        this.usernameToIdMap = {}
+        
+        this.userOptions = this.members.map(member => {
+          const username = member.username || member.email || `User ${member.id}`
+          
+          // Criar mapeamentos bidirecionais
+          this.userIdToUsernameMap[member.id] = username
+          this.usernameToIdMap[username] = member.id
+          
+          return {
+            text: username,
+            value: member.id  // Manter como number
+          }
+        })
+        
+        console.log('User ID to Username map:', this.userIdToUsernameMap)
+        console.log('Username to ID map:', this.usernameToIdMap)
+        
       } catch (error) {
         console.error('Error loading users:', error)
-        // Fallback to empty array if API fails
         this.userOptions = []
       } finally {
         this.loadingUsers = false
       }
     },
+
 
     async loadLabels() {
       try {
@@ -379,6 +398,11 @@ export default {
     async generateReport() {
       this.loading = true
       this.hasSearched = true
+
+      console.log('=== GENERATE REPORT DEBUG ===')
+      console.log('Selected user:', this.selectedUser, typeof this.selectedUser)
+      console.log('Selected label:', this.selectedLabel)
+      console.log('Selected dates:', this.selectedDates)
 
       try {
         // Build query parameters - mantemos apenas filtros que a API suporta
@@ -426,6 +450,16 @@ export default {
     async transformExampleData(examples) {
       const reportData = []
 
+      console.log('=== TRANSFORM DATA DEBUG ===')
+      console.log('Selected user filter (ID):', this.selectedUser, typeof this.selectedUser)
+      
+      // Converter selected user ID para username se necessário
+      let selectedUsername = null
+      if (this.selectedUser !== null) {
+        selectedUsername = this.userIdToUsernameMap[this.selectedUser]
+        console.log('Selected username:', selectedUsername)
+      }
+
       for (const example of examples) {
         try {
           const distribution = await this.$repositories.metrics.fetchCategoryDistribution(
@@ -433,37 +467,45 @@ export default {
             { example: example.id }
           )
 
-          // Percorre cada utilizador
-          for (const uidStr in distribution) {
-            // Normalizar o ID do utilizador para comparação
-            const userIdForComparison = this.normalizeUserId(uidStr)
+          console.log(`Example ${example.id} distribution:`, distribution)
+          console.log('Distribution user keys:', Object.keys(distribution))
+
+          // Iterar sobre cada utilizador na distribuição
+          for (const usernameFromDistribution in distribution) {
+            console.log(`Processing user: ${usernameFromDistribution}`)
             
-            // Filtro de utilizador - corrigir a comparação
-            if (this.selectedUser !== null && !this.matchesUserFilter(userIdForComparison, this.selectedUser)) {
-              continue
+            // FILTRO DE UTILIZADOR - comparar usernames
+            if (this.selectedUser !== null) {
+              if (usernameFromDistribution !== selectedUsername) {
+                console.log(`❌ User ${usernameFromDistribution} filtered out (doesn't match ${selectedUsername})`)
+                continue
+              }
             }
+            
+            console.log(`✅ User ${usernameFromDistribution} passed filter`)
 
-            const userLabels = distribution[uidStr]
+            const userLabels = distribution[usernameFromDistribution]
 
-            // Entradas por label
+            // Iterar sobre cada label deste utilizador
             for (const [labelName, count] of Object.entries(userLabels)) {
-              // Filtro de label
+              // FILTRO DE LABEL
               if (this.selectedLabel && labelName !== this.selectedLabel) {
                 continue
               }
 
+              // Criar uma entrada para cada anotação (baseado no count)
               for (let i = 0; i < count; i++) {
                 const annotationDate = example.createdAt || new Date().toISOString().split("T")[0]
 
-                // Filtro de datas - corrigir a lógica
+                // FILTRO DE DATAS
                 if (!this.matchesDateFilter(annotationDate)) {
                   continue
                 }
 
                 reportData.push({
-                  id: `${example.id}-${uidStr}-${labelName}-${i}`,
+                  id: `${example.id}-${usernameFromDistribution}-${labelName}-${i}`,
                   date: annotationDate,
-                  user: userIdForComparison,
+                  user: usernameFromDistribution, // Guardar o username
                   label: labelName,
                   dataset: this.project.name || "Dataset",
                   document: example.text
@@ -480,17 +522,23 @@ export default {
         }
       }
 
+      console.log('Final report data count:', reportData.length)
       return reportData
     },
 
-    normalizeUserId(userId) {
-      // Se for um número, converte para number
-      const numericId = Number(userId)
-      if (!Number.isNaN(numericId)) {
-        return numericId
+    // 4. Keep getUserDisplayName() but simplify it
+    getUserDisplayName(usernameOrId) {
+      // Se já é um username (string), retorna diretamente
+      if (typeof usernameOrId === 'string') {
+        return usernameOrId
       }
-      // Se for string, mantém como string
-      return userId
+      
+      // Se é um ID numérico, converte para username
+      if (typeof usernameOrId === 'number') {
+        return this.userIdToUsernameMap[usernameOrId] || `User ${usernameOrId}`
+      }
+      
+      return String(usernameOrId)
     },
 
     matchesUserFilter(userIdFromData, selectedUserId) {
@@ -540,21 +588,6 @@ export default {
         date1.getMonth() === date2.getMonth() &&
         date1.getDate() === date2.getDate()
       )
-    },
-
-    getUserDisplayName(userId) {
-      // Primeiro, tentar encontrar por ID numérico
-      const numericId = Number(userId)
-      if (!Number.isNaN(numericId)) {
-        const member = this.members.find((m) => m.id === numericId)
-        if (member) {
-          return member.username || member.email || `User ${numericId}`
-        }
-        return `User ${numericId}`
-      }
-
-      // Se for string, retornar diretamente (para casos como "aggregated", etc.)
-      return String(userId)
     },
 
     clearFilters() {
