@@ -1,27 +1,45 @@
 <template>
   <v-container class="form-container">
     <v-card class="form-card">
+      <!-- pop-up de sucesso -->
+      <v-dialog v-model="showSuccess" max-width="570">
+        <v-card>
+          <v-card-title class="headline">
+            {{ $t('Your perspective has been created successfully') }}
+          </v-card-title>
+
+          <v-card-actions>
+            <v-spacer/>
+            <v-btn color="primary" text @click="onSuccessClose">
+              Close
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+
+
       <!-- header -->
-      <v-card-title class="headline primary white--text d-flex align-center">
+      <v-card-title class="headline primary white--text d-flex align-center ">
         <v-icon left color="white">mdi-pencil</v-icon>
         Create New Perspective
       </v-card-title>
 
       <!-- body -->
-      <v-card-text class="form-content">
+      <v-card-text class="form-content pt-6">
         <!-- global error -->
         <v-alert
-          v-if="error"
+          v-if="showError"
           type="error"
           dismissible
           border="left"
           elevation="2"
           class="custom-alert error-alert"
           colored-border
+          @input="showError = false"
         >
           <div class="d-flex align-center">
             <v-icon class="mr-3">mdi-alert-circle</v-icon>
-            <span>{{ error }}</span>
+            <span>{{ errorText  }}</span>
           </div>
         </v-alert>
 
@@ -35,6 +53,20 @@
               :error-messages="fieldErrors.title"
               outlined dense prepend-inner-icon="mdi-format-title"
               hint="Enter a descriptive title for your perspective"
+              persistent-hint
+            />
+          </div>
+
+          <!-- description -->
+          <div class="input-group">
+            <v-textarea
+              v-model.trim="description"
+              label="Description"
+              :rules="[rules.required]"
+              :error-messages="fieldErrors.description"
+              outlined
+              auto-grow
+              hint="Briefly describe what this perspective is about"
               persistent-hint
             />
           </div>
@@ -158,24 +190,39 @@ export default {
       title: '',
       labels: [this.newLabel()],
       loading: false,
+      description: '',
       valid: true,
-      error: null,
+      showError: false,
+      errorMsgKey: 'errors.serverUnavailable',
+      showSuccess: false,
       fieldErrors: {},
       dataTypes: [
-        { text: 'Texto livre', value: 'string' },
-        { text: 'Número inteiro', value: 'int' },
-        { text: 'Opção de lista', value: 'choice' }
+        { text: 'Text', value: 'string' },
+        { text: 'Number', value: 'int' },
+        { text: 'Options', value: 'choice' }
       ],
       rules: {
-        required: v => !!v || 'Campo obrigatório',
-        isNumber: v => (v === null || v === undefined || v === '') || !isNaN(v) || 'Precisa ser um número'
+        required: v => !!v || 'This field is required',
+        isNumber: v => (v === null || v === undefined || v === '') || !isNaN(v) || 'Must be a number'
       }
     }
   },
+
+  computed: {
+    errorText() {
+      return this.$t(this.errorMsgKey)
+    }
+  },
+
   methods: {
     // factory
     newLabel() {
       return { name: '', data_type: 'string', int_min: null, int_max: null, options: [''] }
+    },
+
+    onSuccessClose() {
+      this.showSuccess = false
+      this.$router.push(`/projects/${this.$route.params.id}/perspective`)
     },
 
     // add / remove labels
@@ -228,43 +275,43 @@ export default {
 
       // title
       if (!this.title.trim()) {
-        this.fieldErrors.title = 'Título é obrigatório'
+        this.fieldErrors.title = 'Title is required'
         ok = false
       }
 
       // labels validations
       this.labels.forEach((lbl, idx) => {
         if (!lbl.name.trim()) {
-          this.fieldErrors[`label_${idx}_name`] = 'Nome é obrigatório'
+          this.fieldErrors[`label_${idx}_name`] = 'Name is required'
           ok = false
         }
         if (!lbl.data_type) {
-          this.fieldErrors[`label_${idx}_data_type`] = 'Tipo é obrigatório'
+          this.fieldErrors[`label_${idx}_data_type`] = 'Type is required'
           ok = false
         }
         if (lbl.data_type === 'int') {
           if (lbl.int_min === null || lbl.int_min === '') {
-            this.fieldErrors[`label_${idx}_int_min`] = 'Min é obrigatório'
+            this.fieldErrors[`label_${idx}_int_min`] = 'Min is required'
             ok = false
           }
           if (lbl.int_max === null || lbl.int_max === '') {
-            this.fieldErrors[`label_${idx}_int_max`] = 'Max é obrigatório'
+            this.fieldErrors[`label_${idx}_int_max`] = 'Max is required'
             ok = false
           }
           if (lbl.int_min !== null && lbl.int_max !== null && Number(lbl.int_min) >= Number(lbl.int_max)) {
-            this.fieldErrors[`label_${idx}_int_max`] = 'Max deve ser maior que Min'
+            this.fieldErrors[`label_${idx}_int_max`] = 'Max must be higher than Min'
             ok = false
           }
         }
         if (lbl.data_type === 'choice') {
           const filledOpts = lbl.options.filter(o => o.trim())
           if (filledOpts.length < 2) {
-            this.fieldErrors[`label_${idx}_option_0`] = 'Pelo menos 2 opções'
+            this.fieldErrors[`label_${idx}_option_0`] = 'At least 2 options'
             ok = false
           }
           lbl.options.forEach((o, oIdx) => {
             if (!o.trim()) {
-              this.fieldErrors[`label_${idx}_option_${oIdx}`] = 'Obrigatório'
+              this.fieldErrors[`label_${idx}_option_${oIdx}`] = 'Required'
               ok = false
             }
           })
@@ -276,13 +323,16 @@ export default {
 
     async submitForm() {
       if (!this.validateForm()) {
-        this.error = 'Por favor, corrija os erros destacados'
+        this.error = 'Please, fill the form correctly'
+        this.errorMsgKey = 'errors.formInvalid'
+        this.showError   = true
         return
       }
 
 
       const payload = {
         title: this.title.trim(),
+        description: this.description.trim(),
         labels: this.labels.map(l => {
           const base = { name: l.name.trim(), data_type: l.data_type }
           if (l.data_type === 'int') {
@@ -301,10 +351,21 @@ export default {
       try {
         this.loading = true
         await this.$repositories.perspective.createPerspective(this.$route.params.id, payload)
-        this.$router.push(`/projects/${this.$route.params.id}/perspective`)
+        this.showSuccess = true
       } catch (e) {
-        console.error('DRF response:', e.response?.data || e)
-        this.error = 'Erro ao criar perspectiva. Veja o console para detalhes.'
+        const { status, data } = e.response || {}
+        // duplicado → mostra erro no campo Title
+        if (status === 400 && data?.title?.length) {
+          this.fieldErrors.title = data.title[0]
+          // não mostramos o alerta global
+          this.showError = false
+          return
+        }
+
+        // qualquer outra falha
+        console.error("DRF response:", data || e)
+        this.errorMsgKey = "errors.serverUnavailable"
+        this.showError   = true
       } finally {
         this.loading = false
       }

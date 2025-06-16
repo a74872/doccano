@@ -168,15 +168,32 @@ export default Vue.extend({
       this.$fetch()
     },
 
-    async onEditSave(updatedUser: User) {
-      try {
-        await this.$repositories.user.update(updatedUser.id, updatedUser)
-        this.dialogEdit = false
-        this.$fetch()
-      } catch (error) {
-        console.error('Erro ao atualizar utilizador:', error)
-      }
-    },
+async onEditSave(updatedUser: User) {
+  try {
+    await this.$repositories.user.update(updatedUser.id, updatedUser)
+    this.dialogEdit = false
+    this.$fetch()
+    this.showSnack('Utilizador editado com sucesso!', 'success')
+  } catch (error) {
+    console.error('Erro ao atualizar utilizador:', error)
+    
+    let errorMessage = 'Erro ao atualizar utilizador'
+    
+    // Username já existe
+    if (error.response?.status === 400 || 
+        error.response?.status === 409 || 
+        error.response?.data?.message?.includes('username')) {
+      errorMessage = 'Nome de utilizador já existe. Por favor, escolha outro.'
+    }
+    // Erro geral de BD/servidor
+    else if (error.response?.status >= 500) {
+      errorMessage = 'Erro do servidor de base de dados. Tente novamente mais tarde.'
+    }
+    
+    this.showSnack(errorMessage, 'error')
+  }
+}
+,
 
     async remove() {
       try {

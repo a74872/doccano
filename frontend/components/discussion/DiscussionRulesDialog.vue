@@ -16,6 +16,19 @@
 
       <!-- mensagens -->
       <v-card-text ref="scrollArea" class="scroll-area">
+        <v-alert
+          v-if="showError"
+          type="error"
+          dense
+          colored-border
+          border="left"
+          class="mb-4"
+          dismissible
+          @input="showError = false"
+        >
+          <v-icon left small>mdi-alert-circle</v-icon>
+          {{ errorText }}
+        </v-alert>
         <template v-if="loading">
           <v-skeleton-loader type="paragraph"/>
         </template>
@@ -68,10 +81,16 @@ export default Vue.extend({
     discussion:   { type:Object,  required:true }
   },
   data () {
-    return { messages: [], loading: false, draft: '' }
+    return { messages: [],
+    loading: false,
+    draft: '',
+    showError   : false,
+    errorMsgKey : 'errors.serverUnavailable'
+    }
   },
   computed: {
-    me () { return this.$auth?.user?.username || '' }
+    me () { return this.$auth?.user?.username || '' },
+    errorText () { return this.$t(this.errorMsgKey) as string }
   },
   mounted () { this.scrollBottom() },
   watch: {
@@ -91,10 +110,15 @@ export default Vue.extend({
         const url  = `/v1/projects/${this.projectId}` + `/discussion/examples/${this.exampleId}` + `/${this.discussion.id}/chat/`
         const data = await this.$axios.$get(url)
         this.messages = (Array.isArray(data) ? data : data.results).slice().reverse()
+      } catch (e) {
+        console.error('Chat-fetch error', e)
+        this.errorMsgKey = 'errors.serverUnavailable'
+        this.showError   = true
       } finally { this.loading = false }
     },
     async send () {
       const text = this.draft.trim()
+      try {
       if (!text) return
       const url = `/v1/projects/${this.projectId}` + `/discussion/examples/${this.exampleId}` + `/${this.discussion.id}/chat/`
       await this.$axios.$post(url, {text })
@@ -105,10 +129,14 @@ export default Vue.extend({
         text
       })
       this.$nextTick(this.scrollBottom)
-
       this.draft = ''
       await this.fetch()
+    } catch (e) {
+    console.error('Chat-send error', e)
+    this.errorMsgKey = 'errors.serverUnavailable'
+    this.showError   = true
     }
+   }
   }
 })
 </script>

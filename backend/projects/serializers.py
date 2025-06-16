@@ -176,7 +176,7 @@ class PerspectiveSerializer(serializers.ModelSerializer):
 
     class Meta:
         model  = Perspective
-        fields = ["id", "title", "project", "labels", "created_by", "created_at"]
+        fields = ["id", "title", "description","project", "labels", "created_by", "created_at"]
         read_only_fields = ("project",)
 
     def create(self, validated_data):
@@ -198,3 +198,21 @@ class PerspectiveSerializer(serializers.ModelSerializer):
             LabelSerializer().create({**lbl, "perspective": instance})
 
         return instance
+
+    def validate(self, attrs):
+        # obtém o project — sem rebentar se ainda não existe instance
+        project = (
+                self.context.get("project")  # vindo da view
+                or attrs.get("project")  # em updates
+                or getattr(self.instance, "project", None)  # edição já gravada
+        )
+        title = attrs.get("title",
+                          getattr(self.instance, "title", None))
+
+        if project and Perspective.objects.filter(
+                project=project, title__iexact=title
+        ).exclude(pk=getattr(self.instance, "pk", None)).exists():
+            raise serializers.ValidationError({
+                "title": "This perspective name has already been used in this project"
+            })
+        return attrs
