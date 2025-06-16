@@ -10,7 +10,7 @@ from rest_framework.generics import UpdateAPIView
 from projects.models import Project
 from projects.permissions import IsProjectAdmin, IsProjectStaffAndReadOnly
 from projects.serializers import ProjectPolymorphicSerializer
-
+from rest_framework.exceptions import ValidationError
 from projects.models import Perspective
 from projects.serializers import PerspectiveSerializer
 from projects.models import PerspectiveResponse
@@ -75,6 +75,7 @@ class CloneProject(views.APIView):
 
 class PerspectiveListCreateView(generics.ListCreateAPIView):
     serializer_class = PerspectiveSerializer
+    pagination_class = None
     permission_classes = [IsAuthenticated & IsProjectAdmin]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["project"]
@@ -111,18 +112,24 @@ class PerspectiveListCreateView(generics.ListCreateAPIView):
         return qs
 
     def perform_create(self, serializer):
-        try:
-            project_id = self.kwargs.get("project_id")
-            print(">>> perform_create: project_id recebido:", project_id)
-            project = get_object_or_404(Project, pk=project_id)
-            print(">>> perform_create: Projeto encontrado:", project)
-            serializer.save(project=project, created_by=self.request.user)
-            print(">>> perform_create: Perspectiva criada com sucesso")
-        except Exception as e:
-            print(">>> Erro em perform_create:", e)
-            raise e
+        project_id = self.kwargs.get("project_id")
+        project    = get_object_or_404(Project, pk=project_id)
 
+        title = serializer.validated_data["title"]
+        if Perspective.objects.filter(project=project,
+                                      title__iexact=title).exists():
+            raise ValidationError(
+                {"title": "This perspective name has already been used in this project"}
+            )
 
+        serializer.save(project=project, created_by=self.request.user)
+
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        project_id = self.kwargs.get("project_id")
+        if project_id:
+            ctx["project"] = get_object_or_404(Project, pk=project_id)
+        return ctx
 
     def perform_destroy(self, instance):
         if instance.project.examples.exists():

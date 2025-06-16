@@ -3,7 +3,6 @@
       <v-card-title>{{ $t('generic.create') }}</v-card-title>
       <v-card-text>
         <v-form ref="form" v-model="valid" >
-          <!-- Novos campos First name e Last name -->
           <v-text-field
             v-model="first_name"
             :label="$t('First Name')"
@@ -91,10 +90,12 @@
         password2: '',
         errorMessage: '',
         firstNameRules: [
-          (v: string) => !!v || this.$t('First name')
+          (v: string) => !!v || this.$t('First name is required'),
+          (v: string) => /^[\p{L}\s'-]+$/u.test(v) || this.$t('Numbers or special characters are not allowed!')
         ],
         lastNameRules: [
-          (v: string) => !!v || this.$t('Last name')
+          (v: string) => !!v || this.$t('Last name is required'),
+          (v: string) => /^[\p{L}\s'-]+$/u.test(v) || this.$t('Numbers or special characters are not allowed!')
         ],
         usernameRules: [
           (v: string) => !!v || this.$t('User name is required'),
@@ -110,8 +111,8 @@
           (v: string) => /^[^\d]*$/.test(v) || this.$t('name.noNumbersAllowed')
         ],
         passwordRules: [
-          (v: string) => !!v || this.$t('user.passwordRequired'),
-          (v: string) => v.length >= 8 || this.$t('user.passwordTooShort')
+          (v: string) => !!v || this.$t('Password is required'),
+          (v: string) => v.length >= 8 || this.$t('Password is too short')
         ]
       }
     },
@@ -135,9 +136,12 @@
             password2: this.password2,
           })
           this.$emit('save')
+          this.$emit('created')
         } catch (e: any) {
-            console.error("Erro ao criar usuário:", e.response?.data || e.message)
+            console.error("Error creating new user:", e.response?.data || e.message)
             this.errorMessage = e.response?.data?.detail || JSON.stringify(e.response?.data) || this.$t('generic.error')
+            this.$emit('failed', e.response?.data?.detail || JSON.stringify(e.response?.data) || this.$t('generic.error' )
+        )
         }
  finally {
           this.loading = false

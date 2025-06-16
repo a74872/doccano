@@ -7,21 +7,26 @@
   >
     <template #content>
       <v-form v-model="valid">
-        <v-alert v-show="showError" v-model="showError" type="error" dismissible>
-          {{ $t('errors.invalidUserOrPass') }}
+        <v-alert
+          v-show="showError"
+          type="error"
+          dense
+          dismissible
+        >
+          {{ errorText }}
         </v-alert>
+
         <v-text-field
           v-model="username"
           :rules="userNameRules($t('rules.userNameRules'))"
           :label="$t('user.username')"
           name="username"
           :prepend-icon="mdiAccount"
-          type="text"
           autofocus
           @keyup.enter="tryLogin"
         />
+
         <v-text-field
-          id="password"
           v-model="password"
           :rules="passwordRules($t('rules.passwordRules'))"
           :label="$t('user.password')"
@@ -42,9 +47,7 @@ import { userNameRules, passwordRules } from '@/rules/index'
 import BaseCard from '@/components/utils/BaseCard.vue'
 
 export default Vue.extend({
-  components: {
-    BaseCard
-  },
+  components: { BaseCard },
 
   props: {
     login: {
@@ -52,31 +55,56 @@ export default Vue.extend({
       default: () => Promise
     }
   },
-  data() {
+
+  data () {
     return {
-      valid: false,
-      username: '',
-      password: '',
+      valid       : false,
+      username    : '',
+      password    : '',
       userNameRules,
       passwordRules,
-      showError: false,
+      showError   : false,
+      errorMsgKey : 'errors.invalidUserOrPass',
       mdiAccount,
       mdiLock
     }
   },
 
+  computed: {
+    errorText (): string {
+      return this.$t(this.errorMsgKey) as string
+    }
+  },
+
   methods: {
-    async tryLogin() {
+  async tryLogin () {
       try {
         await this.login({
           username: this.username,
           password: this.password
         })
         this.$router.push(this.localePath('/projects'))
-      } catch {
+      } catch (err: any) {
+        console.error('Login error ▶', err)
+        console.log('err.message:', err.message)
+        console.log('err.request:', err.request)
+        console.log('err.response:', err.response)
+        console.log('  status:', err.response?.status)
+        console.log('  headers:', err.response?.headers)
+        console.log('  data:', err.response?.data)
+
+        const status = err.response?.status
+        if (status === 401) {
+          this.errorMsgKey = 'errors.invalidUserOrPass'
+        } else {
+          this.errorMsgKey = 'errors.serverUnavailable'
+        }
+
         this.showError = true
       }
     }
-  }
+}
 })
 </script>
+
+

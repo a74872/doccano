@@ -2,10 +2,10 @@
   <v-app-bar app clipped-left>
     <slot name="leftDrawerIcon" />
     <nuxt-link v-if="!isAuthenticated" to="/" style="line-height: 0">
-      <img src="~/assets/icon.png" height="48" />
+      <img src="~/assets/speed.png" height="100" />
     </nuxt-link>
     <v-toolbar-title v-if="!isAuthenticated" class="ml-2 d-none d-sm-flex">
-      doccano
+      Doccano Grupo 16 - Professora Paula Ventura | Professor Nestor Cataño
     </v-toolbar-title>
     <v-btn
       v-if="isAuthenticated && isIndividualProject"
@@ -61,8 +61,14 @@
     </v-btn>
     <v-menu v-if="isAuthenticated" offset-y z-index="200">
       <template #activator="{ on }">
-        <v-btn on icon v-on="on">
-          <v-icon>{{ mdiDotsVertical }}</v-icon>
+        <v-btn
+          text
+          class="text-capitalize"
+          style="text-transform: none;"
+          v-on="on"
+        >
+          <span class="mr-2">Options</span>
+          <v-icon medium>{{ mdiDotsVertical }}</v-icon>
         </v-btn>
       </template>
       <v-list>

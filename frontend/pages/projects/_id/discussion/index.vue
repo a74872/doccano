@@ -13,32 +13,35 @@
         class="me-4"
       />
 
-      <v-btn
-        :disabled="!exampleId"
-        color="primary"
-        class="text-capitalize me-2"
-        @click="openCreate"
-      >
-        Create
-      </v-btn>
-      <v-btn
-        v-if="isProjectAdmin"
-        :disabled="!exampleId"
-        color="error"
-        class="text-capitalize me-2"
-        @click="deleteSelected"
-      >
-        Delete
-      </v-btn>
-      <v-btn
-        v-if="isProjectAdmin"
-        :disabled="!canArchive"
-        color="secondary"
-        class="text-capitalize"
-        @click="archiveSelected"
-      >
-        Archive
-      </v-btn>
+      <div class="d-flex align-center">
+        <v-btn
+          :disabled="!exampleId"
+          color="primary"
+          class="text-capitalize me-2"
+          @click="openCreate"
+        >
+          Create
+        </v-btn>
+        <v-btn
+          v-if="isProjectAdmin"
+          :disabled="!exampleId"
+          color="error"
+          class="text-capitalize me-2"
+          @click="deleteSelected"
+        >
+          Delete
+        </v-btn>
+        <v-btn
+          v-if="isProjectAdmin"
+          :disabled="!canArchive"
+          color="secondary"
+          class="text-capitalize"
+          @click="archiveSelected"
+        >
+          Archive
+        </v-btn>
+      </div>
+      
       <v-spacer />
       <v-progress-circular v-if="isLoading" indeterminate size="20" />
     </v-card-title>
@@ -243,12 +246,18 @@
     <v-snackbar
       v-model="snackbar.show"
       :color="snackbar.color"
-      :timeout="5000"
+      :timeout="snackbar.timeout"
       top
     >
-      {{ snackbar.text }}
+      {{ snackbar.message }}
       <template v-slot:action="{ attrs }">
-        <v-btn text v-bind="attrs" @click="snackbar.show = false">Fechar</v-btn>
+        <v-btn
+          text
+          v-bind="attrs"
+          @click="snackbar.show = false"
+        >
+          Close
+        </v-btn>
       </template>
     </v-snackbar>
 
@@ -321,9 +330,10 @@ export default Vue.extend({
       archivedOpen: null as number|null,
       snackbar: {
         show: false,
-        text: '',
-        color: 'error'
-      },
+        message: '',
+        color: 'error',
+        timeout: 6000
+      }
     }
   },
 
@@ -345,6 +355,8 @@ export default Vue.extend({
           ...d,
           status: computeStatus(d)       // ← «Resolved» | «Unresolved»
         }))
+      } catch (err: any) {
+        this.showError('Erro de base de dados. Tenta novamente mais tarde')
       } finally {
         this.isLoading = false
       }
@@ -380,10 +392,14 @@ export default Vue.extend({
   },
 
     async created() {
-    const member = await this.$repositories.member.fetchMyRole(
-      this.projectId
-    )
-    this.isProjectAdmin = member.isProjectAdmin
+    try {
+      const member = await this.$repositories.member.fetchMyRole(
+        this.projectId
+      )
+      this.isProjectAdmin = member.isProjectAdmin
+    } catch (err: any) {
+      this.showError('Erro de base de dados. Tenta novamente mais tarde')
+    }
   },
 
   watch: {
@@ -391,6 +407,11 @@ export default Vue.extend({
   },
 
   methods: {
+    showError(message: string) {
+      this.snackbar.message = message
+      this.snackbar.color = 'error'
+      this.snackbar.show = true
+    },
 
     openCreate () {
       this.edited = { id: null, title: '', description: '' }
@@ -400,15 +421,19 @@ export default Vue.extend({
     async saveDiscussion (
       { title, description }: { title: string; description: string }
     ) {
-      await this.$repositories.discussion.create(
-        this.projectId,
-        this.exampleId,
-        { title, description }
-      )
+      try {
+        await this.$repositories.discussion.create(
+          this.projectId,
+          this.exampleId,
+          { title, description }
+        )
 
-      await this.$fetch()          // ← em vez de this.fetch()
+        await this.$fetch()          // ← em vez de this.fetch()
 
-      this.dialogCreate = false
+        this.dialogCreate = false
+      } catch (err: any) {
+        this.showError('Erro de base de dados. Tenta novamente mais tarde')
+      }
     },
 
     openVote (discussion:any){
@@ -431,18 +456,32 @@ export default Vue.extend({
     async createRules (titles: string[]) {
       if (!this.current) return
 
-      await Promise.all(
-        titles.map(t =>
-          this.$repositories.rule.create(
-            this.projectId,                       // ① projectId
-            this.exampleId,                       // ② exampleId (da query)
-            this.current.id,                      // ③ discussionId
-            { title: t }
+      // Verificar se já existem regras com os mesmos nomes
+      const existingRuleNames = this.current.rules?.map((r: any) => r.title.toLowerCase()) || []
+      
+      for (const title of titles) {
+        if (existingRuleNames.includes(title.toLowerCase())) {
+          this.showError(`Já existe uma regra definida com o nome "${title}"`)
+          return
+        }
+      }
+
+      try {
+        await Promise.all(
+          titles.map(t =>
+            this.$repositories.rule.create(
+              this.projectId,                       // ① projectId
+              this.exampleId,                       // ② exampleId (da query)
+              this.current.id,                      // ③ discussionId
+              { title: t }
+            )
           )
         )
-      )
 
-      await this.$fetch()
+        await this.$fetch()
+      } catch (err: any) {
+        this.showError('Erro de base de dados. Tenta novamente mais tarde')
+      }
     },
 
     openCheckVotes (discussion:any){
@@ -475,13 +514,11 @@ export default Vue.extend({
         this.selected = []
         await this.$fetch()
       } catch (err:any) {
-        console.error(err.response?.data || err)
+        this.showError('Erro de base de dados. Tenta novamente mais tarde')
       } finally {
         this.isLoading = false
       }
     },
-
-
 
     async archiveSelected () {
       if (!this.canArchive) return
@@ -501,7 +538,7 @@ export default Vue.extend({
         this.selected = []
         await this.$fetch()
       } catch (err:any) {
-        console.error(err.response?.data || err)
+        this.showError('Erro de base de dados. Tenta novamente mais tarde')
       } finally {
         this.isLoading = false
       }
@@ -510,11 +547,11 @@ export default Vue.extend({
     onVotesError() {
       this.snackbar = {
         show: true,
-        text: 'Connection error to the server. Please, try again later.',
-        color: 'error'
+        message: 'Connection error to the server. Please, try again later.',
+        color: 'error',
+        timeout: 6000
       }
     },
-
   }
 })
 </script>

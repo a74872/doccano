@@ -134,7 +134,6 @@ export default Vue.extend({
         { text: 'Username', value: 'username', sortable: true },
         { text: 'First Name', value: 'first_name' },
         { text: 'Last Name', value: 'last_name' },
-        { text: 'Email', value: 'email' },
         { text: 'Joined in', value: 'date_joined' },
         { text: 'Last Login', value: 'last_login' },
       ]

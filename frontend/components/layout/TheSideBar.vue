@@ -1,6 +1,6 @@
 <template>
   <v-list dense>
-    <!-- botão “Start annotation” --------------------------------------->
+    <!-- botão "Start annotation" --------------------------------------->
     <v-btn
       class="ms-4 my-1 mb-2 primary text-capitalize"
       color
@@ -98,11 +98,17 @@ export default {
         /* ――― sempre visíveis ――― */
         { icon: mdiChartBox, text: this.$t('Discrepancies'),         link: 'discrepancies',        isVisible: true },
 
-        /* ↓↓↓ NOVO ITEM ↓↓↓ */
+        /* ――― comparator & reports ――― */
         {
           icon: mdiCompare,
           text: 'Annotations Comparator',
           link: 'annotations-comparator',
+          isVisible: true
+        },
+        {
+          icon: mdiFileChartCheckOutline,
+          text: 'Annotations Reports',
+          link: 'annotations-reports',
           isVisible: true
         },
 
@@ -114,7 +120,7 @@ export default {
         },
 
         {
-          icon: mdiFileChartCheckOutline,   // ← novo item “Statistics”
+          icon: mdiFileChartCheckOutline,
           text: 'Statistics',
           link: 'statistics',
           isVisible: true

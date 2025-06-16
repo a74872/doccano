@@ -6,7 +6,9 @@ from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.parsers import JSONParser
+from rest_framework.exceptions import AuthenticationFailed, ValidationError
 import logging
+from dj_rest_auth.views import LoginView
 from .serializers import UserSerializer
 from projects.permissions import IsProjectAdmin
 
@@ -93,3 +95,32 @@ class UserUpdateView(generics.UpdateAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+class CustomLoginView(LoginView):
+    """
+    Override do dj_rest_auth LoginView para:
+      - credenciais inválidas → 401
+      - erro na BD → 503
+    """
+    def post(self, request, *args, **kwargs):
+        try:
+            return super().post(request, *args, **kwargs)
+        except AuthenticationFailed as e:
+            # user/pass errados
+            return Response(
+                {'detail': str(e)},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        except ValidationError as e:
+            # pode ocorrer se o serializer recusar input mal formado
+            return Response(
+                {'detail': e.detail},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        except DatabaseError as e:
+            # BD em baixo
+            logger.error('DB error on login:', exc_info=e)
+            return Response(
+                {'detail': 'Service temporarily unavailable'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
