@@ -111,6 +111,12 @@ export default {
           link: 'annotations-reports',
           isVisible: true
         },
+        {
+          icon: mdiChartBar,
+          text: 'Annotations Statistics',
+          link: 'annotations-statistics',
+          isVisible: true
+        },
 
         {
           icon: mdiBallot,

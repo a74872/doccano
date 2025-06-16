@@ -46,6 +46,10 @@
               </template>
             </v-simple-table>
           </v-card-text>
+          <v-card-text v-else-if="loading" class="text-center mt-4">
+            <v-progress-circular indeterminate color="primary"></v-progress-circular>
+            <p class="mt-2">Loading profile...</p>
+          </v-card-text>
           <v-divider class="mt-4"></v-divider>
           <v-card-actions class="justify-space-between mt-2">
             <div>
@@ -57,6 +61,25 @@
         </v-card>
       </v-col>
     </v-row>
+
+    <!-- Snackbar para erros -->
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      :timeout="snackbar.timeout"
+      top
+    >
+      {{ snackbar.text }}
+      <template #action="{ attrs }">
+        <v-btn
+          text
+          v-bind="attrs"
+          @click="snackbar.show = false"
+        >
+          Fechar
+        </v-btn>
+      </template>
+    </v-snackbar>
   </v-container>
 </template>
 
@@ -66,31 +89,146 @@ import { mapActions } from 'vuex'
 import Vue from 'vue'
 import { UserItem } from '~/domain/models/user'
 
-
-
-
 export default Vue.extend({
   data() {
     return {
       user: null as UserItem | null,
-      mdiLogout
+      loading: false,
+      mdiLogout,
+      snackbar: {
+        show: false,
+        text: '',
+        color: 'error',
+        timeout: 5000
+      }
     }
   },
-  async created() {
-    try {
-      this.user = await this.$repositories.user.getProfile()
-    } catch (error) {
-      console.error('Failed to fetch user profile:', error)
+
+  async mounted() {
+    // Verificar autenticação simples
+    if (!this.isAuthenticated()) {
+      this.showAuthError()
+      setTimeout(() => {
+        this.$router.push(this.localePath('/'))
+      }, 2000)
+      return
     }
+
+    // Carregar perfil do utilizador
+    await this.loadProfile()
   },
+
   methods: {
     ...mapActions('auth', ['logout']),
+
     goBack() {
       this.$router.push(this.localePath('/projects'))
     },
+
     signout() {
       this.logout()
       this.$router.push(this.localePath('/'))
+    },
+
+    async loadProfile() {
+      this.loading = true
+      try {
+        this.user = await this.$repositories.user.getProfile()
+      } catch (error) {
+        console.error('Failed to fetch user profile:', error)
+
+        // Verificar se é erro de autenticação
+        if (error?.response?.status === 401 || error?.response?.status === 403) {
+          this.showAuthError()
+          setTimeout(() => {
+            this.$router.push(this.localePath('/'))
+          }, 2000)
+          return
+        }
+
+        // Verificar se é erro de base de dados
+        if (this.isDatabaseError(error)) {
+          this.showDatabaseError()
+          setTimeout(() => {
+            this.$router.push(this.localePath('/'))
+          }, 2000)
+          return
+        }
+
+        // Outros erros
+        this.showGenericError()
+      } finally {
+        this.loading = false
+      }
+    },
+
+    isAuthenticated(): boolean {
+      try {
+        // Verificar diferentes métodos de autenticação
+        return !!(
+          this.$store?.getters?.['auth/isAuthenticated'] ||
+          this.$auth?.loggedIn ||
+          this.$cookies?.get('auth-token') ||
+          (typeof window !== 'undefined' && localStorage.getItem('auth-token'))
+        )
+      } catch (error) {
+        console.error('Error checking authentication:', error)
+        return false
+      }
+    },
+
+    isDatabaseError(error: any): boolean {
+      // Verificar diferentes tipos de erros de base de dados
+      if (error?.response?.status >= 500 && error?.response?.status < 600) {
+        return true
+      }
+
+      if (error?.code === 'ECONNREFUSED' ||
+          error?.code === 'ENOTFOUND' ||
+          error?.code === 'ETIMEDOUT') {
+        return true
+      }
+
+      const errorMessage = error?.message?.toLowerCase() || ''
+      if (errorMessage.includes('database') ||
+          errorMessage.includes('connection') ||
+          errorMessage.includes('server') ||
+          errorMessage.includes('timeout')) {
+        return true
+      }
+
+      if (error?.response?.status === 503) {
+        return true
+      }
+
+      return false
+    },
+
+    showDatabaseError() {
+      this.snackbar = {
+        show: true,
+        text: 'Erro de Base de Dados. Tente novamente mais tarde',
+        color: 'error',
+        timeout: 5000
+      }
+    },
+
+    showAuthError() {
+      this.snackbar = {
+        show: true,
+        text: 'Acesso não autorizado. Por favor, faça login.',
+        color: 'warning',
+        timeout: 4000
+      }
+    },
+
+    showGenericError() {
+      this.snackbar = {
+        show: true,
+        text: 'Erro ao carregar perfil. Tente novamente.',
+        color: 'error',
+        timeout: 4000
+      }
     }
   }
 })
@@ -99,7 +237,7 @@ export default Vue.extend({
 <style scoped>
 .v-container {
   height: 100vh;
-  padding-top: 20px; /* Adiciona espaçamento extra no topo */
+  padding-top: 20px;
 }
 .v-card {
   max-width: 500px;
