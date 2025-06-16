@@ -157,6 +157,7 @@
     />
 
     <discussion-rule-form
+      ref="ruleForm"
       :show.sync="dialogRule"
       @save="createRules"
     />
@@ -461,6 +462,10 @@ export default Vue.extend({
       for (const title of titles) {
         if (existingRuleNames.includes(title.toLowerCase())) {
           this.showError(`Já existe uma regra definida com o nome "${title}"`)
+          // Chamar o método showError do componente filho
+          if (this.$refs.ruleForm) {
+            (this.$refs.ruleForm as any).showError()
+          }
           return
         }
       }
@@ -478,7 +483,17 @@ export default Vue.extend({
         )
 
         await this.$fetch()
+        
+        // Chamar o método showSuccess do componente filho
+        if (this.$refs.ruleForm) {
+          (this.$refs.ruleForm as any).showSuccess()
+        }
+        
       } catch (err: any) {
+        // Chamar o método showError do componente filho
+        if (this.$refs.ruleForm) {
+          (this.$refs.ruleForm as any).showError()
+        }
         this.showError('Erro de base de dados. Tenta novamente mais tarde')
       }
     },
