@@ -280,10 +280,21 @@
               color="secondary"
               large
               :disabled="!reportData"
-              @click="exportReport"
+              @click="showExportDialog = true"
             >
               Export&nbsp;Report
             </v-btn>
+
+            <export-report-dialog
+              v-model="showExportDialog"
+              :title="reportTitle.replace(/\\s+/g,'_').toLowerCase()"
+              :headers="activeSection==='annotators' ? annotatorHeaders
+                       : selectedReport==='disagreements' ? disagreementHeaders
+                       : selectedReport==='perspectives'   ? perspectiveHeaders
+                       : annotationHistoryHeaders"
+              :items="filteredItems"
+            />
+
           </v-col>
         </v-row>
 
@@ -376,6 +387,7 @@ import { saveAs } from 'file-saver';
 
 import Vue from 'vue'
 import { mdiCalendarRange } from '@mdi/js'
+import ExportReportDialog from '~/components/statistics/ExportReportDialog.vue'
 import { Perspective } from '~/domain/models/perspective/perspective'
 import { APIStatisticsRepository } from '~/repositories/statistics/apiStatisticsRepository'
 
@@ -420,6 +432,8 @@ export default Vue.extend({
   layout: 'project',
   middleware: ['check-auth', 'auth', 'setCurrentProject'],
 
+  components: { ExportReportDialog },
+
   validate({ params }) {
     return /^\d+$/.test(params.id)
   },
@@ -427,6 +441,7 @@ export default Vue.extend({
   data() {
     return {
       icons: {calendar: mdiCalendarRange,},
+      showExportDialog: false,
       dateMenu  : false,
       startDate : null as string | null,
       endDate   : null as string | null,
