@@ -163,6 +163,19 @@
               <template #[`item.averageAnnotationsPerDocument`]="{ item }">
                 <span>{{ item.averageAnnotationsPerDocument.toFixed(1) }}</span>
               </template>
+              <template #[`item.percentage`]="{ item }">
+                <div class="d-flex align-center">
+                  <v-progress-linear
+                    :value="item.percentage"
+                    color="success"
+                    height="15"
+                    rounded
+                    class="mr-2"
+                    style="min-width: 60px;"
+                  />
+                  <span class="text-caption">{{ item.percentage.toFixed(1) }}%</span>
+                </div>
+              </template>
               <template #[`item.topLabels`]="{ item }">
                 <v-chip-group column>
                   <v-chip
@@ -385,6 +398,7 @@ export default {
         { text: 'Anotações', value: 'totalAnnotations', sortable: true },
         { text: 'Documentos', value: 'documentsAnnotated', sortable: true },
         { text: 'Média/Doc', value: 'averageAnnotationsPerDocument', sortable: true },
+        { text: 'Percentual', value: 'percentage', sortable: true },
         { text: 'Top Labels', value: 'topLabels', sortable: false }
       ],
 
@@ -421,7 +435,8 @@ export default {
           this.loadLabels()
         ])
       } catch (error) {
-        this.showSnackbar('Erro ao carregar dados iniciais', 'error', 'mdi-alert-circle')
+        const message = (error && error.message) ? error.message : 'Erro ao carregar dados iniciais'
+        this.showSnackbar(message, 'error', 'mdi-alert-circle')
         console.error(error)
       }
     },
@@ -434,6 +449,8 @@ export default {
           value: member.id
         }))
       } catch (error) {
+        const message = (error && error.message) ? error.message : 'Erro ao carregar anotadores'
+        this.showSnackbar(message, 'error', 'mdi-alert-circle')
         console.error('Erro ao carregar anotadores:', error)
         throw error
       }
@@ -447,6 +464,8 @@ export default {
           value: label.text
         }))
       } catch (error) {
+        const message = (error && error.message) ? error.message : 'Erro ao carregar labels'
+        this.showSnackbar(message, 'error', 'mdi-alert-circle')
         console.error('Erro ao carregar labels:', error)
         throw error
       }
@@ -455,60 +474,114 @@ export default {
     async loadStatistics() {
       this.loading = true
       this.hasSearched = true
-
       try {
-        // Carregar exemplos/documentos
-        const examplesResponse = await this.$services.example.list(this.projectId)
-        this.examples = examplesResponse.items || examplesResponse
+        // Build query parameters for API (if needed, e.g., label filter)
+        const query = {}
+        if (this.selectedLabels && this.selectedLabels.length === 1) {
+          query.label = this.selectedLabels[0]
+        }
 
-        // Carregar anotações para cada exemplo
-        const annotationsPromises = this.examples.map(async (example) => {
-          try {
-            // Ajuste aqui baseado na sua API de anotações
-            const annotations = await this.$services.annotation.list(this.projectId, example.id)
-            return {
-              exampleId: example.id,
-              exampleText: example.text,
-              annotations: annotations.items || annotations
-            }
-          } catch (error) {
-            console.error(`Erro ao carregar anotações do exemplo ${example.id}:`, error)
-            return {
-              exampleId: example.id,
-              exampleText: example.text,
-              annotations: []
-            }
-          }
+        // Get examples with filters
+        const exampleList = await this.$services.example.list(this.projectId, query)
+        const examples = exampleList.items || exampleList
+
+        // Prepare user lookup
+        const userIdToUsernameMap = {}
+        this.members.forEach(member => {
+          userIdToUsernameMap[member.id] = member.username || member.email || `User ${member.id}`
         })
 
-        const annotationsByExample = await Promise.all(annotationsPromises)
+        // Gather all annotation data for statistics
+        const allAnnotations = []
+        for (const example of examples) {
+          try {
+            const distribution = await this.$repositories.metrics.fetchCategoryDistribution(
+              this.projectId,
+              { example: example.id }
+            )
+            for (const username in distribution) {
+              const userLabels = distribution[username]
+              for (const [labelName, count] of Object.entries(userLabels)) {
+                for (let i = 0; i < count; i++) {
+                  const annotationDate = example.createdAt || new Date().toISOString().split('T')[0]
+                  // User filter
+                  if (this.selectedAnnotators.length > 0 && !this.selectedAnnotators.some(id => userIdToUsernameMap[id] === username)) {
+                    continue
+                  }
+                  // Label filter
+                  if (this.selectedLabels.length > 0 && !this.selectedLabels.includes(labelName)) {
+                    continue
+                  }
+                  // Date filter (reuse matchesDateFilter from your reports page if needed)
+                  if (this.selectedDates && this.selectedDates.length > 0) {
+                    if (!this.matchesDateFilter(annotationDate)) {
+                      continue
+                    }
+                  }
+                  allAnnotations.push({
+                    user: username,
+                    label: labelName,
+                    date: annotationDate,
+                    exampleId: example.id,
+                    exampleText: example.text,
+                    createdAt: annotationDate
+                  })
+                }
+              }
+            }
+          } catch (err) {
+            console.error(`Error processing example ${example.id}:`, err)
+          }
+        }
 
-        // Flatten todas as anotações
-        this.annotations = annotationsByExample.flatMap(item =>
-          item.annotations.map(annotation => ({
-            ...annotation,
-            exampleId: item.exampleId,
-            exampleText: item.exampleText
-          }))
-        )
-
-        // Aplicar filtros
+        // Save for table display and stats
+        this.annotations = allAnnotations
         const filteredAnnotations = this.applyFilters(this.annotations)
-
-        // Calcular estatísticas
         this.stats = this.calculateStatistics(filteredAnnotations)
-
         this.showSnackbar(
           `Estatísticas geradas! ${this.stats.totalAnnotations} anotações analisadas.`,
           'success'
         )
       } catch (error) {
-        this.showSnackbar('Erro ao gerar estatísticas', 'error', 'mdi-alert-circle')
+        const message = (error && error.message) ? error.message : 'Erro ao gerar estatísticas'
+        this.showSnackbar(message, 'error', 'mdi-alert-circle')
         console.error(error)
         this.stats = null
       } finally {
         this.loading = false
       }
+    },
+
+    matchesDateFilter(dateString) {
+      if (!this.selectedDates || this.selectedDates.length === 0) {
+        return true
+      }
+      try {
+        const exampleDate = new Date(dateString)
+        if (this.selectedDates.length === 1) {
+          const selectedDate = new Date(this.selectedDates[0])
+          return this.isSameDate(exampleDate, selectedDate)
+        }
+        if (this.selectedDates.length === 2) {
+          const startDate = new Date(this.selectedDates[0])
+          const endDate = new Date(this.selectedDates[1])
+          startDate.setHours(0, 0, 0, 0)
+          endDate.setHours(23, 59, 59, 999)
+          return exampleDate >= startDate && exampleDate <= endDate
+        }
+        return true
+      } catch (error) {
+        console.error('Error in date filter:', error)
+        return true
+      }
+    },
+
+    isSameDate(date1, date2) {
+      return (
+        date1.getFullYear() === date2.getFullYear() &&
+        date1.getMonth() === date2.getMonth() &&
+        date1.getDate() === date2.getDate()
+      )
     },
 
     applyFilters(annotations) {
@@ -609,19 +682,27 @@ export default {
       })
 
       // Finalizar stats dos anotadores
+      // Recalcular percentuais com base nas anotações filtradas
+      const userAnnotationCounts = {}
+      filteredAnnotations.forEach(annotation => {
+        const annotatorId = annotation.user || annotation.annotator_id || 'unknown'
+        userAnnotationCounts[annotatorId] = (userAnnotationCounts[annotatorId] || 0) + 1
+      })
       const finalAnnotatorStats = Array.from(annotatorStats.values()).map(annotator => {
         const documentsCount = annotator.documentsAnnotated.size
         const topLabels = Array.from(annotator.labelCounts.entries())
           .map(([label, count]) => ({ label, count }))
           .sort((a, b) => b.count - a.count)
-
+        const userCount = userAnnotationCounts[annotator.id] || 0
+        const percentage = totalAnnotations > 0 ? (userCount / totalAnnotations) * 100 : 0
         return {
           id: annotator.id,
           name: annotator.name,
           totalAnnotations: annotator.totalAnnotations,
           documentsAnnotated: documentsCount,
           averageAnnotationsPerDocument: documentsCount > 0 ? annotator.totalAnnotations / documentsCount : 0,
-          topLabels
+          topLabels,
+          percentage
         }
       })
 
