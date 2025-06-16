@@ -5,7 +5,7 @@
       <v-col cols="12">
         <h1 class="text-h4 mb-4">Estatísticas de Anotações</h1>
         <p class="text-subtitle-1 grey--text">
-          Visualização simples das estatísticas do projeto
+          Visualização detalhada das estatísticas do projeto
         </p>
       </v-col>
     </v-row>
@@ -67,14 +67,22 @@
       </v-card-text>
     </v-card>
 
+    <!-- Loading -->
+    <v-card v-if="loading" class="mb-4">
+      <v-card-text class="text-center py-8">
+        <v-progress-circular indeterminate size="50" color="primary" />
+        <div class="mt-4 text-h6">Gerando estatísticas...</div>
+      </v-card-text>
+    </v-card>
+
     <!-- Cards de Resumo -->
-    <v-row v-if="stats" class="mb-4">
+    <v-row v-if="stats && !loading" class="mb-4">
       <v-col cols="12" sm="6" md="3">
         <v-card color="primary" dark>
           <v-card-text>
             <div class="d-flex align-center">
               <div class="flex-grow-1">
-                <div class="text-h4">{{ stats.totalAnnotations }}</div>
+                <div class="text-h4">{{ stats.totalAnnotations.toLocaleString() }}</div>
                 <div class="text-subtitle-1">Total de Anotações</div>
               </div>
               <v-icon size="40">mdi-note-text</v-icon>
@@ -116,10 +124,10 @@
           <v-card-text>
             <div class="d-flex align-center">
               <div class="flex-grow-1">
-                <div class="text-h4">{{ stats.documentsCompleted }}</div>
-                <div class="text-subtitle-1">Documentos Completos</div>
+                <div class="text-h4">{{ stats.documentsAnnotated }}</div>
+                <div class="text-subtitle-1">Documentos Anotados</div>
               </div>
-              <v-icon size="40">mdi-check-circle</v-icon>
+              <v-icon size="40">mdi-file-check</v-icon>
             </div>
           </v-card-text>
         </v-card>
@@ -127,24 +135,13 @@
     </v-row>
 
     <!-- Tabelas de Estatísticas -->
-    <v-row v-if="stats">
+    <v-row v-if="stats && !loading">
       <!-- Estatísticas por Anotador -->
       <v-col cols="12" lg="6">
         <v-card>
           <v-card-title>
             <v-icon left>mdi-account-star</v-icon>
             Performance dos Anotadores
-            <v-spacer />
-            <v-btn
-              small
-              color="primary"
-              outlined
-              :loading="exportLoading"
-              @click="exportData('annotators')"
-            >
-              <v-icon left small>mdi-export</v-icon>
-              Exportar
-            </v-btn>
           </v-card-title>
           <v-card-text>
             <v-data-table
@@ -152,16 +149,40 @@
               :items="stats.annotatorStats"
               :items-per-page="10"
               dense
+              sort-by="totalAnnotations"
+              sort-desc
             >
-              <template #[`item.progress`]="{ item }">
-                <v-progress-linear
-                  :value="item.progress"
-                  color="primary"
-                  height="20"
-                  rounded
-                >
-                  {{ item.progress }}%
-                </v-progress-linear>
+              <template #[`item.totalAnnotations`]="{ item }">
+                <v-chip small color="primary" outlined>
+                  {{ item.totalAnnotations.toLocaleString() }}
+                </v-chip>
+              </template>
+              <template #[`item.documentsAnnotated`]="{ item }">
+                <span>{{ item.documentsAnnotated }}</span>
+              </template>
+              <template #[`item.averageAnnotationsPerDocument`]="{ item }">
+                <span>{{ item.averageAnnotationsPerDocument.toFixed(1) }}</span>
+              </template>
+              <template #[`item.topLabels`]="{ item }">
+                <v-chip-group column>
+                  <v-chip
+                    v-for="label in item.topLabels.slice(0, 2)"
+                    :key="label.label"
+                    x-small
+                    color="info"
+                    text-color="white"
+                  >
+                    {{ label.label }} ({{ label.count }})
+                  </v-chip>
+                  <v-chip
+                    v-if="item.topLabels.length > 2"
+                    x-small
+                    color="grey"
+                    text-color="white"
+                  >
+                    +{{ item.topLabels.length - 2 }}
+                  </v-chip>
+                </v-chip-group>
               </template>
             </v-data-table>
           </v-card-text>
@@ -174,17 +195,6 @@
           <v-card-title>
             <v-icon left>mdi-tag-text</v-icon>
             Estatísticas de Labels
-            <v-spacer />
-            <v-btn
-              small
-              color="primary"
-              outlined
-              :loading="exportLoading"
-              @click="exportData('labels')"
-            >
-              <v-icon left small>mdi-export</v-icon>
-              Exportar
-            </v-btn>
           </v-card-title>
           <v-card-text>
             <v-data-table
@@ -192,7 +202,14 @@
               :items="stats.labelStats"
               :items-per-page="10"
               dense
+              sort-by="count"
+              sort-desc
             >
+              <template #[`item.count`]="{ item }">
+                <v-chip small color="success" outlined>
+                  {{ item.count.toLocaleString() }}
+                </v-chip>
+              </template>
               <template #[`item.percentage`]="{ item }">
                 <div class="d-flex align-center">
                   <v-progress-linear
@@ -206,44 +223,93 @@
                   <span class="text-caption">{{ item.percentage.toFixed(1) }}%</span>
                 </div>
               </template>
+              <template #[`item.uniqueAnnotators`]="{ item }">
+                <span>{{ item.uniqueAnnotators }}</span>
+              </template>
             </v-data-table>
           </v-card-text>
         </v-card>
       </v-col>
     </v-row>
 
-    <!-- Exportação Completa -->
-    <v-card v-if="stats" class="mt-4">
-      <v-card-title>
-        <v-icon left>mdi-file-export</v-icon>
-        Exportar Relatório Completo
-      </v-card-title>
-      <v-card-text>
-        <v-row>
-          <v-col cols="12" md="6">
-            <v-select
-              v-model="exportFormat"
-              :items="exportFormatOptions"
-              label="Formato"
-              prepend-icon="mdi-file-document"
-              outlined
-              dense
-            />
-          </v-col>
-          <v-col cols="12" md="6" class="d-flex align-center">
-            <v-btn
-              color="success"
-              large
-              :loading="exportLoading"
-              @click="exportCompleteReport"
-            >
-              <v-icon left>mdi-download</v-icon>
-              Baixar Relatório
-            </v-btn>
-          </v-col>
-        </v-row>
-      </v-card-text>
-    </v-card>
+    <!-- Estatísticas Adicionais -->
+    <v-row v-if="stats && !loading">
+      <!-- Distribuição Temporal -->
+      <v-col cols="12" lg="6">
+        <v-card>
+          <v-card-title>
+            <v-icon left>mdi-calendar</v-icon>
+            Atividade por Período
+          </v-card-title>
+          <v-card-text>
+            <v-simple-table dense>
+              <thead>
+                <tr>
+                  <th>Período</th>
+                  <th>Anotações</th>
+                  <th>Percentual</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="period in stats.periodStats" :key="period.period">
+                  <td>{{ period.period }}</td>
+                  <td>
+                    <v-chip small color="info" outlined>
+                      {{ period.count }}
+                    </v-chip>
+                  </td>
+                  <td>
+                    <v-progress-linear
+                      :value="period.percentage"
+                      color="info"
+                      height="10"
+                      rounded
+                      style="min-width: 80px;"
+                    />
+                  </td>
+                </tr>
+              </tbody>
+            </v-simple-table>
+          </v-card-text>
+        </v-card>
+      </v-col>
+
+      <!-- Top Documentos -->
+      <v-col cols="12" lg="6">
+        <v-card>
+          <v-card-title>
+            <v-icon left>mdi-file-star</v-icon>
+            Documentos Mais Anotados
+          </v-card-title>
+          <v-card-text>
+            <v-simple-table dense>
+              <thead>
+                <tr>
+                  <th>Documento</th>
+                  <th>Anotações</th>
+                  <th>Anotadores</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="doc in stats.topDocuments" :key="doc.id">
+                  <td>
+                    <span class="text-truncate" style="max-width: 200px;">
+                      {{ doc.text.substring(0, 50) }}...
+                    </span>
+                  </td>
+                  <td>
+                    <v-chip small color="primary" outlined>
+                      {{ doc.annotationCount }}
+                    </v-chip>
+                  </td>
+                  <td>{{ doc.annotatorCount }}</td>
+                </tr>
+              </tbody>
+            </v-simple-table>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
 
     <!-- Mensagem sem dados -->
     <v-card v-else-if="!loading && hasSearched">
@@ -251,6 +317,15 @@
         <v-icon size="64" color="grey lighten-1">mdi-chart-box-outline</v-icon>
         <div class="text-h6 grey--text mt-4">Nenhuma estatística disponível</div>
         <div class="grey--text">Tente ajustar os filtros e gerar novamente</div>
+      </v-card-text>
+    </v-card>
+
+    <!-- Mensagem inicial -->
+    <v-card v-else-if="!loading && !hasSearched">
+      <v-card-text class="text-center py-8">
+        <v-icon size="64" color="primary">mdi-chart-line</v-icon>
+        <div class="text-h6 mt-4">Pronto para gerar estatísticas</div>
+        <div class="grey--text">Configure os filtros desejados e clique em "Gerar Estatísticas"</div>
       </v-card-text>
     </v-card>
 
@@ -284,7 +359,6 @@ export default {
 
       // Estados
       loading: false,
-      exportLoading: false,
       hasSearched: false,
 
       // Dados
@@ -293,13 +367,8 @@ export default {
       labelOptions: [],
       members: [],
       labels: [],
-
-      // Configurações
-      exportFormat: 'csv',
-      exportFormatOptions: [
-        { text: 'CSV', value: 'csv' },
-        { text: 'JSON', value: 'json' }
-      ],
+      annotations: [],
+      examples: [],
 
       // Snackbar
       snackbar: {
@@ -314,14 +383,16 @@ export default {
       annotatorHeaders: [
         { text: 'Anotador', value: 'name', sortable: true },
         { text: 'Anotações', value: 'totalAnnotations', sortable: true },
-        { text: 'Documentos', value: 'documents', sortable: true },
-        { text: 'Progresso', value: 'progress', sortable: true }
+        { text: 'Documentos', value: 'documentsAnnotated', sortable: true },
+        { text: 'Média/Doc', value: 'averageAnnotationsPerDocument', sortable: true },
+        { text: 'Top Labels', value: 'topLabels', sortable: false }
       ],
 
       labelHeaders: [
         { text: 'Label', value: 'label', sortable: true },
         { text: 'Quantidade', value: 'count', sortable: true },
-        { text: 'Porcentagem', value: 'percentage', sortable: true }
+        { text: 'Porcentagem', value: 'percentage', sortable: true },
+        { text: 'Anotadores', value: 'uniqueAnnotators', sortable: true }
       ]
     }
   },
@@ -350,7 +421,7 @@ export default {
           this.loadLabels()
         ])
       } catch (error) {
-        this.showSnackbar('Erro ao carregar dados', 'error', 'mdi-alert-circle')
+        this.showSnackbar('Erro ao carregar dados iniciais', 'error', 'mdi-alert-circle')
         console.error(error)
       }
     },
@@ -364,6 +435,7 @@ export default {
         }))
       } catch (error) {
         console.error('Erro ao carregar anotadores:', error)
+        throw error
       }
     },
 
@@ -376,6 +448,7 @@ export default {
         }))
       } catch (error) {
         console.error('Erro ao carregar labels:', error)
+        throw error
       }
     },
 
@@ -384,77 +457,209 @@ export default {
       this.hasSearched = true
 
       try {
-        const query = {}
-        if (this.selectedLabels.length > 0) {
-          query.labels = this.selectedLabels
-        }
+        // Carregar exemplos/documentos
+        const examplesResponse = await this.$services.example.list(this.projectId)
+        this.examples = examplesResponse.items || examplesResponse
 
-        const examples = await this.$services.example.list(this.projectId, query)
-        this.stats = this.calculateStatistics(examples.items)
+        // Carregar anotações para cada exemplo
+        const annotationsPromises = this.examples.map(async (example) => {
+          try {
+            // Ajuste aqui baseado na sua API de anotações
+            const annotations = await this.$services.annotation.list(this.projectId, example.id)
+            return {
+              exampleId: example.id,
+              exampleText: example.text,
+              annotations: annotations.items || annotations
+            }
+          } catch (error) {
+            console.error(`Erro ao carregar anotações do exemplo ${example.id}:`, error)
+            return {
+              exampleId: example.id,
+              exampleText: example.text,
+              annotations: []
+            }
+          }
+        })
 
-        this.showSnackbar(`Estatísticas geradas! ${this.stats.totalAnnotations} anotações analisadas.`)
+        const annotationsByExample = await Promise.all(annotationsPromises)
+
+        // Flatten todas as anotações
+        this.annotations = annotationsByExample.flatMap(item =>
+          item.annotations.map(annotation => ({
+            ...annotation,
+            exampleId: item.exampleId,
+            exampleText: item.exampleText
+          }))
+        )
+
+        // Aplicar filtros
+        const filteredAnnotations = this.applyFilters(this.annotations)
+
+        // Calcular estatísticas
+        this.stats = this.calculateStatistics(filteredAnnotations)
+
+        this.showSnackbar(
+          `Estatísticas geradas! ${this.stats.totalAnnotations} anotações analisadas.`,
+          'success'
+        )
       } catch (error) {
         this.showSnackbar('Erro ao gerar estatísticas', 'error', 'mdi-alert-circle')
         console.error(error)
+        this.stats = null
       } finally {
         this.loading = false
       }
     },
 
-    calculateStatistics(examples) {
-      const annotatorData = new Map()
-      const labelData = new Map()
-      let totalAnnotations = 0
+    applyFilters(annotations) {
+      let filtered = [...annotations]
 
-      // Processar exemplos
-      examples.forEach(example => {
-        // Simular dados de anotação
-        const annotatorId = example.annotator || 1
-        const labels = example.labels || ['PESSOA']
+      // Filtro por anotadores
+      if (this.selectedAnnotators.length > 0) {
+        filtered = filtered.filter(annotation =>
+          this.selectedAnnotators.includes(annotation.user || annotation.annotator_id)
+        )
+      }
 
-        labels.forEach(label => {
-          if (this.selectedLabels.length === 0 || this.selectedLabels.includes(label)) {
-            totalAnnotations++
-
-            // Dados do anotador
-            if (!annotatorData.has(annotatorId)) {
-              annotatorData.set(annotatorId, {
-                id: annotatorId,
-                name: this.getUserName(annotatorId),
-                totalAnnotations: 0,
-                documents: 0
-              })
-            }
-            annotatorData.get(annotatorId).totalAnnotations++
-
-            // Dados do label
-            if (!labelData.has(label)) {
-              labelData.set(label, { label, count: 0 })
-            }
-            labelData.get(label).count++
-          }
+      // Filtro por labels
+      if (this.selectedLabels.length > 0) {
+        filtered = filtered.filter(annotation => {
+          const annotationLabel = annotation.label || annotation.category || annotation.text
+          return this.selectedLabels.includes(annotationLabel)
         })
+      }
+
+      return filtered
+    },
+
+    calculateStatistics(filteredAnnotations) {
+      const annotatorStats = new Map()
+      const labelStats = new Map()
+      const documentStats = new Map()
+      const periodStats = new Map()
+
+      const totalAnnotations = filteredAnnotations.length
+
+      // Processar cada anotação
+      filteredAnnotations.forEach(annotation => {
+        const annotatorId = annotation.user || annotation.annotator_id || 'unknown'
+        const annotatorName = this.getUserName(annotatorId)
+        const label = annotation.label || annotation.category || annotation.text || 'Unknown'
+        const exampleId = annotation.exampleId
+        const createdAt = annotation.created_at || annotation.createdAt || new Date().toISOString()
+
+        // Stats por anotador
+        if (!annotatorStats.has(annotatorId)) {
+          annotatorStats.set(annotatorId, {
+            id: annotatorId,
+            name: annotatorName,
+            totalAnnotations: 0,
+            documentsAnnotated: new Set(),
+            labelCounts: new Map()
+          })
+        }
+
+        const annotatorData = annotatorStats.get(annotatorId)
+        annotatorData.totalAnnotations++
+        annotatorData.documentsAnnotated.add(exampleId)
+
+        if (!annotatorData.labelCounts.has(label)) {
+          annotatorData.labelCounts.set(label, 0)
+        }
+        annotatorData.labelCounts.set(label, annotatorData.labelCounts.get(label) + 1)
+
+        // Stats por label
+        if (!labelStats.has(label)) {
+          labelStats.set(label, {
+            label,
+            count: 0,
+            annotators: new Set()
+          })
+        }
+
+        const labelData = labelStats.get(label)
+        labelData.count++
+        labelData.annotators.add(annotatorId)
+
+        // Stats por documento
+        if (!documentStats.has(exampleId)) {
+          const example = this.examples.find(ex => ex.id === exampleId)
+          documentStats.set(exampleId, {
+            id: exampleId,
+            text: example ? example.text : 'Unknown',
+            annotationCount: 0,
+            annotators: new Set()
+          })
+        }
+
+        const docData = documentStats.get(exampleId)
+        docData.annotationCount++
+        docData.annotators.add(annotatorId)
+
+        // Stats por período (mês)
+        const period = new Date(createdAt).toLocaleDateString('pt-BR', {
+          year: 'numeric',
+          month: 'long'
+        })
+
+        if (!periodStats.has(period)) {
+          periodStats.set(period, 0)
+        }
+        periodStats.set(period, periodStats.get(period) + 1)
       })
 
-      // Calcular estatísticas finais
-      const annotatorStats = Array.from(annotatorData.values()).map(annotator => ({
-        ...annotator,
-        documents: Math.floor(annotator.totalAnnotations / 3), // Estimativa
-        progress: Math.min(100, (annotator.totalAnnotations / 100) * 100)
+      // Finalizar stats dos anotadores
+      const finalAnnotatorStats = Array.from(annotatorStats.values()).map(annotator => {
+        const documentsCount = annotator.documentsAnnotated.size
+        const topLabels = Array.from(annotator.labelCounts.entries())
+          .map(([label, count]) => ({ label, count }))
+          .sort((a, b) => b.count - a.count)
+
+        return {
+          id: annotator.id,
+          name: annotator.name,
+          totalAnnotations: annotator.totalAnnotations,
+          documentsAnnotated: documentsCount,
+          averageAnnotationsPerDocument: documentsCount > 0 ? annotator.totalAnnotations / documentsCount : 0,
+          topLabels
+        }
+      })
+
+      // Finalizar stats dos labels
+      const finalLabelStats = Array.from(labelStats.values()).map(label => ({
+        label: label.label,
+        count: label.count,
+        percentage: totalAnnotations > 0 ? (label.count / totalAnnotations) * 100 : 0,
+        uniqueAnnotators: label.annotators.size
       }))
 
-      const labelStats = Array.from(labelData.values()).map(label => ({
-        ...label,
-        percentage: (label.count / totalAnnotations) * 100
-      }))
+      // Finalizar stats dos documentos (top 10)
+      const topDocuments = Array.from(documentStats.values())
+        .map(doc => ({
+          ...doc,
+          annotatorCount: doc.annotators.size
+        }))
+        .sort((a, b) => b.annotationCount - a.annotationCount)
+        .slice(0, 10)
+
+      // Finalizar stats por período
+      const finalPeriodStats = Array.from(periodStats.entries())
+        .map(([period, count]) => ({
+          period,
+          count,
+          percentage: totalAnnotations > 0 ? (count / totalAnnotations) * 100 : 0
+        }))
+        .sort((a, b) => b.count - a.count)
 
       return {
         totalAnnotations,
-        activeAnnotators: annotatorData.size,
-        uniqueLabels: labelData.size,
-        documentsCompleted: examples.length,
-        annotatorStats,
-        labelStats
+        activeAnnotators: annotatorStats.size,
+        uniqueLabels: labelStats.size,
+        documentsAnnotated: documentStats.size,
+        annotatorStats: finalAnnotatorStats,
+        labelStats: finalLabelStats,
+        topDocuments,
+        periodStats: finalPeriodStats
       }
     },
 
@@ -469,91 +674,6 @@ export default {
       this.stats = null
       this.hasSearched = false
       this.showSnackbar('Filtros limpos', 'info', 'mdi-filter-remove')
-    },
-
-    exportData(type) {
-      this.exportLoading = true
-
-      try {
-        const data = type === 'annotators' ? this.stats.annotatorStats : this.stats.labelStats
-        const filename = `${type}_stats_${new Date().toISOString().split('T')[0]}.csv`
-
-        const csvContent = this.convertToCSV(data)
-        this.downloadFile(csvContent, filename, 'text/csv')
-
-        this.showSnackbar('Dados exportados com sucesso!')
-      } catch (error) {
-        this.showSnackbar('Erro na exportação', 'error', 'mdi-alert-circle')
-      } finally {
-        this.exportLoading = false
-      }
-    },
-
-    exportCompleteReport() {
-      this.exportLoading = true
-
-      try {
-        const filename = `relatorio_completo_${new Date().toISOString().split('T')[0]}.${this.exportFormat}`
-        let content, mimeType
-
-        if (this.exportFormat === 'json') {
-          content = JSON.stringify(this.stats, null, 2)
-          mimeType = 'application/json'
-        } else {
-          content = this.generateCompleteCSV()
-          mimeType = 'text/csv'
-        }
-
-        this.downloadFile(content, filename, mimeType)
-        this.showSnackbar('Relatório exportado com sucesso!')
-      } catch (error) {
-        this.showSnackbar('Erro na exportação', 'error', 'mdi-alert-circle')
-      } finally {
-        this.exportLoading = false
-      }
-    },
-
-    convertToCSV(data) {
-      if (!data || data.length === 0) return ''
-
-      const headers = Object.keys(data[0]).join(';')
-      const rows = data.map(item => Object.values(item).join(';'))
-
-      return [headers, ...rows].join('\n')
-    },
-
-    generateCompleteCSV() {
-      let csv = 'RELATÓRIO DE ESTATÍSTICAS\n\n'
-
-      csv += 'RESUMO GERAL\n'
-      csv += `Total de Anotações;${this.stats.totalAnnotations}\n`
-      csv += `Anotadores Ativos;${this.stats.activeAnnotators}\n`
-      csv += `Labels Únicos;${this.stats.uniqueLabels}\n`
-      csv += `Documentos Completos;${this.stats.documentsCompleted}\n\n`
-
-      csv += 'ESTATÍSTICAS POR ANOTADOR\n'
-      csv += this.convertToCSV(this.stats.annotatorStats) + '\n\n'
-
-      csv += 'ESTATÍSTICAS POR LABEL\n'
-      csv += this.convertToCSV(this.stats.labelStats)
-
-      return csv
-    },
-
-    downloadFile(content, filename, mimeType) {
-      const blob = new Blob([content], { type: mimeType })
-      const link = document.createElement('a')
-      const url = URL.createObjectURL(blob)
-
-      link.href = url
-      link.download = filename
-      link.style.display = 'none'
-
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-
-      URL.revokeObjectURL(url)
     }
   }
 }
@@ -568,9 +688,68 @@ export default {
   border-radius: 4px;
 }
 
+.text-truncate {
+  display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 @media (max-width: 960px) {
   .text-h4 {
     font-size: 1.5rem !important;
   }
+
+  .v-chip-group {
+    flex-direction: column;
+  }
+}
+
+/* Melhorar responsividade das tabelas */
+@media (max-width: 768px) {
+  .v-data-table {
+    font-size: 0.8rem;
+  }
+
+  .v-chip {
+    font-size: 0.7rem !important;
+  }
+}
+
+/* Estilo para cards de estatísticas */
+.v-card.primary {
+  background: linear-gradient(45deg, #1976d2, #42a5f5) !important;
+}
+
+.v-card.success {
+  background: linear-gradient(45deg, #388e3c, #66bb6a) !important;
+}
+
+.v-card.info {
+  background: linear-gradient(45deg, #0288d1, #4fc3f7) !important;
+}
+
+.v-card.warning {
+  background: linear-gradient(45deg, #f57c00, #ffb74d) !important;
+}
+
+/* Animações suaves */
+.v-card {
+  transition: all 0.3s ease;
+}
+
+.v-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+/* Melhorar aparência dos chips */
+.v-chip.v-size--small {
+  font-weight: 500;
+}
+
+/* Estilo para progress bars */
+.v-progress-linear {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 </style>
