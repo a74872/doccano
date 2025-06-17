@@ -25,6 +25,7 @@
             v-for="msg in messages"
             :key="msg.id"
             :class="['msg-wrapper', msg.username === me ? 'mine' : 'theirs']"
+            :style="{ '--user-color': getUserColor(msg.username) }"
           >
             <div class="bubble">
               {{ msg.text }}
@@ -99,7 +100,21 @@ export default Vue.extend({
       sending: false,
       draft: '',
       showError: false,
-      errorMessage: ''
+      errorMessage: '',
+      // Paleta de cores para diferentes usuários
+      userColors: [
+        '#FF6B6B', // Coral
+        '#4ECDC4', // Turquesa
+        '#45B7D1', // Azul claro
+        '#96CEB4', // Verde menta
+        '#FECA57', // Amarelo
+        '#FF9FF3', // Rosa
+        '#54A0FF', // Azul
+        '#5F27CD', // Roxo
+        '#00D2D3', // Ciano
+        '#FF9F43'  // Laranja
+      ],
+      userColorMap: new Map()
     }
   },
   computed: {
@@ -116,6 +131,21 @@ export default Vue.extend({
     scrollBottom () {
       const el = this.$refs.scrollArea as HTMLElement
       if (el) el.scrollTop = el.scrollHeight
+    },
+
+    // Função para gerar cor consistente para cada usuário
+    getUserColor(username: string): string {
+      if (!this.userColorMap.has(username)) {
+        // Se for o usuário atual, usa uma cor específica
+        if (username === this.me) {
+          this.userColorMap.set(username, '#87CEEB') // Cor atual mantida para o usuário
+        } else {
+          // Para outros usuários, atribui uma cor da paleta
+          const colorIndex = this.userColorMap.size % this.userColors.length
+          this.userColorMap.set(username, this.userColors[colorIndex])
+        }
+      }
+      return this.userColorMap.get(username)
     },
 
     showErrorMessage(message: string) {
@@ -236,13 +266,24 @@ export default Vue.extend({
   margin:6px 0;
 }
 
+/* Posicionamento das mensagens */
+:deep(.msg-wrapper.mine){
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+:deep(.msg-wrapper.theirs){
+  align-self: flex-start;
+  align-items: flex-start;
+}
+
 .meta{
   font-size:.85rem;
   padding:0rem 12rem;
   color:#4682B4;
 }
 
-/* bolha */
+/* Bolha com cor dinâmica baseada no usuário */
 .bubble{
   padding:.40rem .0rem;
   border-radius:18px;
@@ -250,9 +291,18 @@ export default Vue.extend({
   white-space:pre-wrap;
   word-break:break-word;
   line-height:1rem;
-  background:#87CEEB;
-  color:Black;
+  background: var(--user-color, #87CEEB);
+  color: Black;
   margin-top: 9px;
   margin-bottom: 5px;
+}
+
+/* Estilo alternativo: diferentes formas para usuários diferentes */
+:deep(.msg-wrapper.mine .bubble){
+  border-bottom-right-radius: 4px;
+}
+
+:deep(.msg-wrapper.theirs .bubble){
+  border-bottom-left-radius: 4px;
 }
 </style>
