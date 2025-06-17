@@ -8,9 +8,6 @@ from django_drf_filepond.models import DrfFilePondStoredStorage
 from .managers import ExampleManager, ExampleStateManager
 from projects.models import Project
 
-
-
-
 class Example(models.Model):
     objects = ExampleManager()
 
