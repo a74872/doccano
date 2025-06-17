@@ -1,26 +1,99 @@
 <template>
-  <v-card>
-    <v-card-title>{{ $t('generic.edit') }}</v-card-title>
-    <v-card-text>
-      <v-form v-model="valid" ref="form">
-        <v-text-field v-model="first_name" :label="$t('First Name')" :rules="firstNameRules" required />
-        <v-text-field v-model="last_name" :label="$t('Last Name')" :rules="lastNameRules" required />
-        <v-text-field v-model="username" :label="$t('Username')" :rules="usernameRules" required />
-        <v-text-field v-model="email" :label="$t('Email')" :rules="emailRules" type="email" required />
+  <v-card elevation="2" class="rounded-lg">
+    <!-- Header -->
+    <v-toolbar flat color="primary" dark>
+      <v-toolbar-title>
+        <v-icon left>mdi-pencil</v-icon>
+        {{ $t('generic.edit') }}
+      </v-toolbar-title>
+      <v-spacer />
+      <v-btn icon @click="$emit('cancel')">
+        <v-icon>mdi-close</v-icon>
+      </v-btn>
+    </v-toolbar>
 
-        <v-checkbox v-model="isSuperuser" :label="$t('Superuser')" />
-        <v-checkbox v-model="isStaff" :label="$t('Staff')" />
+    <!-- Form -->
+    <v-card-text class="pa-4">
+      <v-form v-model="valid" ref="form" @submit.prevent="saveUser">
+        <v-row>
+          <v-col cols="12" sm="6">
+            <v-text-field
+              v-model="first_name"
+              :label="$t('First Name')"
+              :rules="[(v) => !!v || $t('First name is required')]"
+              prepend-inner-icon="mdi-account"
+              outlined dense clearable
+              required
+            />
+          </v-col>
+          <v-col cols="12" sm="6">
+            <v-text-field
+              v-model="last_name"
+              :label="$t('Last Name')"
+              :rules="[(v) => !!v || $t('Last name is required')]"
+              prepend-inner-icon="mdi-account"
+              outlined dense clearable
+              required
+            />
+          </v-col>
+          <v-col cols="12" sm="6">
+            <v-text-field
+              v-model="username"
+              :label="$t('Username')"
+              :rules="usernameRules"
+              prepend-inner-icon="mdi-account-box"
+              outlined dense clearable
+              required
+            />
+          </v-col>
+          <v-col cols="12" sm="6">
+            <v-text-field
+              v-model="email"
+              :label="$t('Email')"
+              :rules="emailRules"
+              prepend-inner-icon="mdi-email"
+              type="email"
+              outlined dense clearable
+              required
+            />
+          </v-col>
+          <v-col cols="6">
+            <v-switch
+              v-model="isSuperuser"
+              :label="$t('Superuser')"
+              color="primary"
+              inset
+            />
+          </v-col>
+          <v-col cols="6">
+            <v-switch
+              v-model="isStaff"
+              :label="$t('Staff')"
+              color="primary"
+              inset
+            />
+          </v-col>
+        </v-row>
+
+        <v-alert v-if="errorMessage" type="error" dense class="mt-3">
+          {{ errorMessage }}
+        </v-alert>
       </v-form>
-
-      <v-alert v-if="errorMessage" type="error" dense>
-        {{ errorMessage }}
-      </v-alert>
     </v-card-text>
 
-    <v-card-actions>
+    <!-- Actions -->
+    <v-divider />
+    <v-card-actions class="pa-4">
       <v-spacer />
-      <v-btn text @click="$emit('cancel')">{{ $t('generic.cancel') }}</v-btn>
-      <v-btn color="primary" :disabled="!valid" :loading="loading" @click="saveUser">
+      <v-btn text @click="$emit('cancel')">
+        {{ $t('generic.cancel') }}
+      </v-btn>
+      <v-btn
+        color="primary"
+        :disabled="!valid"
+        :loading="loading"
+        @click="saveUser"
+      >
         {{ $t('update') }}
       </v-btn>
     </v-card-actions>
@@ -32,6 +105,7 @@ import Vue from 'vue'
 import { User } from '~/domain/models/user'
 
 export default Vue.extend({
+  name: 'EditUserCard',
   props: {
     user: {
       type: Object as () => User,
@@ -48,14 +122,18 @@ export default Vue.extend({
       email: '',
       isSuperuser: false,
       isStaff: false,
-      errorMessage: '',
-      firstNameRules: [(v: string) => !!v || this.$t('First name')],
-      lastNameRules: [(v: string) => !!v || this.$t('Last name')],
-      usernameRules: [
+      errorMessage: ''
+    }
+  },
+  computed: {
+    usernameRules() {
+      return [
         (v: string) => !!v || this.$t('User name is required'),
         (v: string) => v.length <= 30 || this.$t('User name is too long')
-      ],
-      emailRules: [
+      ]
+    },
+    emailRules() {
+      return [
         (v: string) => !!v || this.$t('User email is required'),
         (v: string) => /.+@.+\..+/.test(v) || this.$t('User email must be valid'),
         (v: string) => v.length <= 254 || this.$t('User email is too long')
@@ -79,9 +157,8 @@ export default Vue.extend({
   },
   methods: {
     async saveUser() {
-      if (!(this.$refs.form as Vue & { validate: () => boolean }).validate()) {
-        return
-      }
+      const form = this.$refs.form as Vue & { validate: () => boolean }
+      if (!form.validate()) return
 
       this.loading = true
       this.errorMessage = ''
@@ -108,3 +185,13 @@ export default Vue.extend({
 })
 </script>
 
+<style scoped>
+/* Garante alinhamento correto do texto nos campos */
+.v-text-field >>> .v-input__control .v-input__slot {
+  text-align: left;
+}
+
+.v-text-field >>> input {
+  text-align: left !important;
+}
+</style>

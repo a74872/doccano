@@ -23,7 +23,7 @@
         >
           {{ $t('generic.edit') }}
         </v-btn>
-        <v-dialog v-model="dialogEdit">
+        <v-dialog v-model="dialogEdit" max-width="900">
           <form-edit
             :user="selected[0]"
             @cancel="dialogEdit = false"
