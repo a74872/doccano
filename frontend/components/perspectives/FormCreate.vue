@@ -1,19 +1,31 @@
 <template>
   <v-container class="form-container">
     <v-card class="form-card">
-      <!-- pop-up de sucesso -->
-      <v-dialog v-model="showSuccess" max-width="570">
-        <v-card>
-          <v-card-title class="headline">
-            {{ $t('Your perspective has been created successfully') }}
-          </v-card-title>
+      <!-- pop-up de sucesso melhorado -->
+      <v-dialog
+        v-model="showSuccess"
+        max-width="420"
+        transition="dialog-bottom-transition"
+        persistent
+      >
+        <v-card
+          class="success-popup pa-6 text-center"
+          elevation="8"
+        >
+          <!-- ícone de validação -->
+          <v-icon size="56" color="success" class="mb-3">
+            mdi-check-circle
+          </v-icon>
 
-          <v-card-actions>
-            <v-spacer/>
-            <v-btn color="primary" text @click="onSuccessClose">
-              Close
-            </v-btn>
-          </v-card-actions>
+          <!-- título mais discreto -->
+          <div class="text-h6 font-weight-medium mb-4">
+            {{ $t('Your perspective has been created successfully') }}
+          </div>
+
+          <!-- botão a toda a largura -->
+          <v-btn color="success" dark block @click="onSuccessClose">
+            {{ $t('Close') }}
+          </v-btn>
         </v-card>
       </v-dialog>
 
@@ -387,6 +399,17 @@ export default {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+.success-popup {
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ffffff 0%, #f6fef7 100%);
+}
+
+.success-popup .text-h6 {
+  font-size: 1rem;      /* antes a class headline podia chegar a 24 px */
+  line-height: 1.35rem;
+}
+
 .form-card {
   border-radius: 8px;
   overflow: hidden;
